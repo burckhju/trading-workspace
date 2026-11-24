@@ -1,5 +1,18 @@
 # Traceability – aktueller Nachweiseinstieg
 
+> **Neuester enger Betriebsnachweis, 24.11.2026:** Der
+> [P02-Readback](../reviews/P02_SOURCE_GAP_READBACK_2026-11-24.md) bestätigt
+> die tatsächliche Installation von **v1.5.54/9a5e59d…**, Schema0060 und
+> vier gesunde Dienste. Historischer Gap: `JPMORGAN_SNAPSHOT_TIMEOUT`;
+> jüngste gespeicherte V2-Bewertung: `BELOW_ENTRY` am 24.11. um
+> **18:21:41 Uhr MEZ**, Bid vorhanden, Empfangsalter 10,456 s. Die aktuelle
+> Originalstatuslücke ist keine neue V2-Preisunterbrechung. Original-Bidzeit
+> und qualifizierter Instrumentstatus bleiben für B58 unbelegt. Keine
+> neue Gesamtinventur, keine aktuelle Gesamtquote und keine Wirkung des
+> noch offenen PR-370-Resolverfixes abgeleitet. Der
+> [Backlog](../planning/PRODUCT_BACKLOG.md#depotdiagnose-20261124) führt den
+> abgeschlossenen engen P02-Nachweis und genau einen nächsten Auftrag.
+
 > **Späterer Betriebsnachweis, 22.11.2026:** Der
 > [vollständige PC-Readback](../reviews/DEPOT_DATA_READBACK_2026-11-22.md)
 > belegt v1.5.52/c7db441…, Schema0060, vier gesunde Dienste und einen
@@ -7,7 +20,7 @@
 > 4/4 Datenprobleme und null technische Positionsfehler; getrennte
 > Produktende-/Zahlungsrollen sind beobachtet. Die unten erhaltenen
 > Aussagen zur noch fehlenden PC-Bestätigung gelten für ihren früheren
-> Prüfzeitpunkt. Die [aktuelle Statusfortschreibung](../planning/PRODUCT_BACKLOG.md#depotdiagnose-20261122)
+> Prüfzeitpunkt. Die [damalige Statusfortschreibung](../planning/PRODUCT_BACKLOG.md#depotdiagnose-20261122)
 > trennt den abgeschlossenen Gesamtreadback von verbleibenden Daten-/
 > Journal-/Originalbelegen; keine Gesamtfachabnahme oder neue Quellenfreigabe.
 
@@ -16,9 +29,10 @@
 | Feld | Nachweisstand |
 |---|---|
 | Erstprüfung | 19.11.2026, Beginn 19:31:38 Uhr MEZ / 18:31:38 UTC, auf v1.5.51 |
-| Fortschreibung | 20.11.2026, ab 13:46:04 Uhr MEZ; Main-Delta, aktuelle CI und Veröffentlichung von #368 geprüft |
-| Geprüfter Produktcommit | `c7db441de36297a98d47cdf28c64b4e5d9994692` (veröffentlichter Tag `v1.5.52`; unveränderte Anwendung im neueren Dokument-Main) |
-| Aktueller Dokument-Main | `6c0f9160b91bee4c6c45849c9c47d4c4b5a3bf56`, Merge #369 vom 20.11.2026, 15:01:45 Uhr MEZ; reine Dokumentkonsolidierung |
+| Fortschreibung | 24.11.2026: enger P02-Verbraucherread, tatsächliche Installation und PR-CI auf 41a0cf80… ergänzt; Gesamtinventur vom 22.11. und Produkt-/CI-Prüfung vom 20.11. behalten ihre eigenen Grenzen |
+| Geprüfte Produktbasis | `c7db441de36297a98d47cdf28c64b4e5d9994692` / v1.5.52 für den ursprünglichen Datenvertrag und die unten datierten Main-Tests; relevante Provider-/Market-Data-/V2-Pfade bis 9a5e59d… unverändert |
+| Aktueller Main und getrennt belegter PC | `9a5e59dac3bb219cbc40641e62e75871eb2ed131`, `VERSION=1.5.54`, Merge #373 vom 22.11.2026, 21:35:28 Uhr MEZ; dieselbe tatsächliche PC-Installation im privaten Paket vom 24.11. vor/nach geprüft |
+| Früherer Dokument-Main | `6c0f9160b91bee4c6c45849c9c47d4c4b5a3bf56`, Merge #369 vom 20.11.2026, 15:01:45 Uhr MEZ; historische reine Dokumentkonsolidierung |
 | Aufgabenstatus | Ausschließlich [Product Backlog – Abnahmematrix](../planning/PRODUCT_BACKLOG.md#abnahmematrix) |
 | Gegenstand | Soll-Ist-Nachweise und deren zeitliche Geltung; keine neue fachliche Abnahme oder Betriebsänderung |
 
@@ -40,9 +54,23 @@ Ursprüngliches Soll → dokumentierte Umfangsentscheidung → Verarbeitung und 
 | Brutto-SELL, Vollabschlusskohorte, Trefferquote, Durchschnitt, Median, Profit-Faktor und Verkaufsbeitragsgrafik | [Periodenqualifikation](../implementation/PERIOD_REALIZED_GROSS_REPORT_QUALIFICATION.md), [UI8](../implementation/UI_PERFORMANCE_CONSOLIDATION.md), [v1.5.42 / UX4-C](../releases/V1.5.42-UX4-PERFORMANCE-QUALITY-LIFECYCLE.md) | [Kennzahlen](../planning/PRODUCT_BACKLOG.md#pb-019-performance-metrics), [Statistik](../planning/PRODUCT_BACKLOG.md#pb-019-performance-statistics), [Dashboard](../planning/PRODUCT_BACKLOG.md#pb-019-performance-dashboards), [Auswertungen](../planning/PRODUCT_BACKLOG.md#pb-019-performance-evaluations) |
 | Evidence → Hypothese → Vorschlag → Validierung → Freigabe → getrennte Aktivierung → Anwendung → Rückkehr | [RuntimeActivationService](../../backend/app/features/model/service/runtime_activation_service.py), [native Candidate-Governance-Reise](../../tests/e2e/candidate-governance-journey-postgres.spec.ts) | [Governance](../planning/PRODUCT_BACKLOG.md#pb-020-governance), [Aktivierung](../planning/PRODUCT_BACKLOG.md#pb-020-activation), [konkrete Kandidatenfamilie](../planning/PRODUCT_BACKLOG.md#pb-020-candidate-family); andere Modellfamilien gesondert |
 | Indikative V2- und Produktfristprüfung, eigene Episoden und passive Reader | [V2-/Fristvertrag](../features/HEBELTRADER_MONITORING_INTEGRATION_CONTRACT.md#indicative-review-readiness-v2), [v1.5.50](../releases/V1.5.50-INDICATIVE-V2-AND-PRODUCT-DEADLINES.md), [Build-/Recoveryreparatur](../releases/V1.5.51-RELIABLE-BACKEND-BUILD.md), [Datums-/Originalupgrade v1.5.52](../releases/V1.5.52-PRODUCT-DATE-SEMANTICS.md) | [Monitoring](../planning/PRODUCT_BACKLOG.md#monitoring-rules), [Erinnerungen](../planning/PRODUCT_BACKLOG.md#reminders), [Installation](../planning/PRODUCT_BACKLOG.md#operations-installation) |
-| Datierter PC-Betrieb und späterer Ursachenbefund | [#367](https://github.com/burckhju/trading-workspace/pull/367): Installation/Aktivierung und Zyklus 18:06:42–18:07:17 Uhr MEZ, Audit 18:13:12; [#368](https://github.com/burckhju/trading-workspace/pull/368): damaliger Readback für vier offene Positionen auf v1.5.51; Datumsfix inzwischen in v1.5.52 veröffentlicht, private Rohdiagnose und neuer PC-Wirkungsnachweis nicht öffentlich | [Betriebsevidenz](../planning/PRODUCT_BACKLOG.md#betriebsnachweis), [aktueller PR-Abgleich](../planning/PRODUCT_BACKLOG.md#pr-abgleich), [Folgeauftrag](../planning/PRODUCT_BACKLOG.md#naechster-schnitt). Ausgelieferter Main-Code ist kein neuer PC-Installations- oder Wirkungsnachweis. |
+| Datierter PC-Betrieb und späterer Ursachenbefund | [#367](https://github.com/burckhju/trading-workspace/pull/367) und [#368](https://github.com/burckhju/trading-workspace/pull/368): historische v1.5.51-Belege; [Gesamtreadback 22.11.](../reviews/DEPOT_DATA_READBACK_2026-11-22.md): v1.5.52, vier offene Positionen und getrennte Datumsrollen; [P02-Readback 24.11.](../reviews/P02_SOURCE_GAP_READBACK_2026-11-24.md): tatsächliches v1.5.54, historischer Timeout und neuer gespeicherter V2-Entscheid | [Betriebsevidenz](../planning/PRODUCT_BACKLOG.md#betriebsnachweis), [Folgeauftrag](../planning/PRODUCT_BACKLOG.md#naechster-schnitt). Unterschiedliche Zeit-/Bestandsschnitte; keine aktuelle Depotquote aus dem Einzelread. Private Rohdaten bleiben außerhalb des Repositories. |
 
-## Aktuell erneut gelesene CI
+## CI des geprüften PR-Arbeitsstands und historische Produktqualifikation
+
+Am 24.11. sind alle vier PR-Läufe für
+`41a0cf80b1f0702d3322bcf268ed83da8cf84de2` erfolgreich abgeschlossen:
+[Backend 45262911140](https://github.com/burckhju/trading-workspace/actions/runs/45262911140),
+[Frontend 45262911117](https://github.com/burckhju/trading-workspace/actions/runs/45262911117),
+[End-to-End 45262911015](https://github.com/burckhju/trading-workspace/actions/runs/45262911015)
+und [Versionsprüfung 45262911040](https://github.com/burckhju/trading-workspace/actions/runs/45262911040).
+Das qualifiziert den vorherigen Code-/Fixturestand des offenen PR #370;
+es belegt weder eine PC-Installation dieses Fixes noch einen veröffentlichten
+Softwaretag. Der anschließende reine Dokumentationsnachtrag erhält eigene
+Prüfungen am tatsächlichen neuen Head. Keine Anwendungstests wurden für
+diesen Dokumentationsschnitt erneut gestartet.
+
+### Produkt-Main-Prüfung vom 20.11.2026
 
 Die unveränderten Funktionsbefunde der Erstprüfung und das gezielt geprüfte Main-Delta sind getrennt nachvollziehbar. Alle folgenden Produktläufe sind auf `c7db441de36297a98d47cdf28c64b4e5d9994692` gebunden. Run-/Job-/Stepzustände und die maßgeblichen Abschlusslogs einschließlich Checkout wurden direkt gelesen. Die Zahlen sind ausgeführte bestehende Main-Prüfungen, keine in diesem Dokumentationsauftrag neu gestarteten Anwendungstests.
 

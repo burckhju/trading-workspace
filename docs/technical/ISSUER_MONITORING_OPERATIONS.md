@@ -253,25 +253,70 @@ aufgeführt und dürfen nicht aus grünen Unit-Tests abgeleitet werden.
 <a id="lesende-depot-datenversorgungsdiagnose"></a>
 ## Lesende Diagnose der tatsächlichen Depotversorgung
 
-**Im Betrieb beobachtet, 22.11.2026:** Der Nutzer hat den nachfolgenden
+**Neuester enger Betriebsbeleg, 24.11.2026:** Der
+[archivgebundene P02-Read](../reviews/P02_SOURCE_GAP_READBACK_2026-11-24.md)
+bestätigt v1.5.54/9a5e59d…, Schema0060 und vier gesunde laufende Dienste.
+Die Sammlung um 18:23:08–18:23:10 Uhr MEZ findet eine gespeicherte
+V2-Bewertung von 18:21:41 Uhr MEZ mit vorhandenem Bid, 10,456 Sekunden
+Empfangsalter und `BELOW_ENTRY`. Der historische Gap ist
+`JPMORGAN_SNAPSHOT_TIMEOUT`; der heutige
+`ORIGINAL_MARKET_STATUS_NOT_DELIVERED` ist eine Statusdatenlücke, keine
+erneute V2-Preisunterbrechung. Der enge Read ist abgeschlossen. Er enthält
+keine neue Gesamtinventur, keine neue Fristprüfung und keinen Beleg für
+vollständige B58-Inputs. Der Diagnose-/Resolverfix aus PR #370 ist auf
+diesem PC nicht installiert und hat diesen Preisbefund nicht bewirkt.
+
+**Letzter vollständiger Verbraucherread, 22.11.2026:** Der Nutzer hat den nachfolgenden
 Collector auf v1.5.52/c7db441… ausgeführt. Installation/Schema, 30 erfolgreiche
 GETs, vollständiges Vierer-Inventar und unveränderte Monitoringzyklusmarker
 sind im [Readbacknachweis](../reviews/DEPOT_DATA_READBACK_2026-11-22.md)
-belegt. V2-Einstand und Produktfrist bleiben jeweils bei 4/4 Datenproblemen.
+belegt. V2-Einstand und Produktfrist hatten damals jeweils 4/4 Datenprobleme.
 Dieser tatsächliche Lauf ergänzt die frühere lokale Helferqualifikation.
 Eine erkannte Grenze bleibt: die sechs Positionsreader geben den konkreten
-P02-Gapgrund aus dem unabhängigen Statusjournal nicht aus. Dafür den
-[gezielten Collectormodus](#gezielter-p02-journalread) mit den vorhandenen
-Ownerreadern verwenden; ein identischer Gesamtexport oder ein neuer Kursabruf ist kein
-Ersatz für diesen gespeicherten Fakt.
+P02-Gapgrund aus dem unabhängigen Statusjournal nicht aus. Der
+[gezielte Collectormodus](#gezielter-p02-journalread) hat diese Lücke am
+24.11. geschlossen. Seine Anleitung bleibt für die reproduzierbare
+Diagnose erhalten; sie ist kein erneuter aktueller P02-Arbeitsauftrag.
 
-Nachgeprüfter Main: `9a5e59dac3bb219cbc40641e62e75871eb2ed131` / `VERSION=1.5.54`, PR373 vom 22.11.2026, 21:35:28 Uhr MEZ. Die verwendeten Backendreader, Docker- und Launcherdateien sind gegenüber der geprüften Produktbasis `c7db441de36297a98d47cdf28c64b4e5d9994692` unverändert. Das zusätzliche Delta zum vorherigen Main febeb922… enthält ausschließlich Versions-/Liefermetadaten und Dokumentation. Weder diese Main-Auslieferung noch der im Arbeitsbranch ergänzte Resolverfix ist ein PC-Installationsnachweis. [Fachlicher Datenvertrag und Einzelbelege](../reviews/DEPOT_DATA_SUPPLY_2026-11-20.md); [einziger nächster Arbeitsauftrag](../planning/PRODUCT_BACKLOG.md#naechster-schnitt). Der eigenständige Collector ist für den bestehenden PC vorbereitet; seine lokale Prüfung ist keine Ausführung auf dem Nutzerbestand.
+Nachgeprüfter Main: `9a5e59dac3bb219cbc40641e62e75871eb2ed131` / `VERSION=1.5.54`, PR373 vom 22.11.2026, 21:35:28 Uhr MEZ. Die verwendeten Backendreader, Docker- und Launcherdateien sind gegenüber der geprüften Produktbasis `c7db441de36297a98d47cdf28c64b4e5d9994692` unverändert. Das zusätzliche Delta zum vorherigen Main febeb922… enthält ausschließlich Versions-/Liefermetadaten und Dokumentation. Die tatsächliche Installation von v1.5.54 ist separat durch das neue private Paket belegt, nicht aus Main abgeleitet. [Fachlicher Datenvertrag und Einzelbelege](../reviews/DEPOT_DATA_SUPPLY_2026-11-20.md); [einziger nächster Arbeitsauftrag](../planning/PRODUCT_BACKLOG.md#naechster-schnitt). Lokale Helferqualifikation, tatsächlich ausgeführter passiver Read und fachliche Regelabdeckung bleiben getrennt.
 
 Es existiert bereits ein geeigneter GET-Inventarread: `/api/v1/market-data/positions/quote-coverage`. Er ermittelt alle offenen, nicht stornierten Positionen aus der DB, einschließlich Positionen ohne Quelle; es gibt keine feste Sechserliste und keinen Bezug nur auf letzte Rulechecks. Er liefert Produkt- und Listingidentitäten sowie source selection. Vor/nach Sammlung werden dessen IDs und Mapping-/Auswahlbezüge verglichen. Für diese Inventur ist kein neuer API-Endpoint, Runner oder installierter Anwendungscode nötig.
 
 Quellbelege: [Inventar-API](../../backend/app/features/market_data/api/quote_coverage.py), Z.51–60; [Projektion](../../backend/app/features/market_data/service/position_quote_coverage.py), Z.131–158; [Positionsinventur](../../backend/app/features/market_data/persistence/position_quote_coverage.py), Z.52–114; [Quellenread](../../backend/app/features/market_data/persistence/quote_coverage.py), Z.25–130. Ausschließlich SELECTs und reine Projektion, keine Provideraufrufe/flush/commit. Die Coverage-Projektion besitzt mehrere kurze Reads, keinen global atomaren Snapshot.
 
 Die dortige Eigenschaft `monitoring_usable` ist **kein** Nachweis der B58-/V2-Regelqualität: sie schließt ausdrücklich STALE/REFERENCE_ONLY/TIMESTAMP_UNKNOWN ein (`service/position_quote_coverage.py:209–229`). Die tatsächlichen gespeicherten Regelbewertungen bleiben maßgeblich.
+
+Der ergänzende vorhandene GET `/api/v1/market-data/warrants/quote-coverage`
+liefert bestehende Produktrouten, Mappingzustand, gespeicherte Quotes und
+aktuelle Konfiguration für gehaltene Produkte, ohne Provider-I/O oder Jobplanung
+([API](../../backend/app/features/market_data/api/quote_coverage.py),
+[Service](../../backend/app/features/market_data/service/quote_coverage.py)).
+Seine `discovery_reasons` kommen nur aus aktuellen Schedulerjobs für
+`FRANKFURT_MAPPING`/`VONTOBEL_MAPPING`, nicht aus vollständiger persistierter
+Discoveryhistorie. Frühere Auswahlkandidaten sind im bestehenden
+`PositionQuoteSourceSelectionModel.evidence` gespeichert und werden von
+beiden GETs nicht ausgegeben; dafür ist ein gezielter lesender SELECT
+erforderlich. Leere Runtimegründe belegen keinen früheren Discoveryfehler.
+Beide GETs enthalten nur offene Positionen beziehungsweise deren Produkte:
+Ein heute fehlender Archivkandidat ist erst mit gespeichertem
+`closed_at`/`cancelled_at` als geschlossen/storniert belegt; sonst bleibt
+seine Zuordnung ungeklärt.
+
+Diese vorhandenen Quellen ergänzen die Diagnose ungebundener Positionen;
+der bestehende `--source-gap-from`-Modus setzt eine bestätigte Route voraus.
+Eine künftige gezielte Sammlung für ungebundene Positionen ist damit nicht
+bereits implementiert. Für passive DB-Reads keine Owner-Methode mit
+`FOR UPDATE` verwenden; insbesondere sperrt
+`PositionQuoteSourceSelectionRepository.active_for_position()` die Auswahlzeile.
+
+**Journalgrund fachlich auswerten:** `GAP_PRESENT` allein belegt keinen
+Preisausfall. `ORIGINAL_MARKET_STATUS_NOT_DELIVERED` bleibt eine strenge
+B58-Lücke, ist aber im freigegebenen V2-Pfad ausdrücklich von
+`REVIEW_PRICE_SUPPLY_INTERRUPTED` ausgenommen. Bei Abruffehlern können
+Batchcaches denselben Fehler erneut zurückgeben; die Gap-Erfassungszeit
+ist deshalb nicht ohne Weiteres die ursprüngliche Netzwerkfehlerzeit.
+Ein früherer bidloser Quote und ein später erfasster Timeout sind getrennte
+Fakten. Empfangszeit, Originalkurszeit und Statusgeltung bleiben verschieden.
 
 ### Ein einzelner lesender Collector außerhalb des Programmordners
 
@@ -329,8 +374,9 @@ Providerkeys und Produktoriginalbytes werden nicht gesammelt.
 ### Einmaliger gezielter Journalread nach vollständigem Archiv
 
 Der ergänzte Modus desselben Collectors liest genau eine im alten Paket
-gebundene Position. Er ist für den beobachteten v1.5.52-Bestand vorbereitet
-und benötigt keinen installierten Resolverfix. Die heruntergeladene Datei
+gebundene Position. Er wurde am 24.11. gegen die archivierte v1.5.52-Bindung
+auf der tatsächlichen v1.5.54-Installation erfolgreich ausgeführt und
+benötigt keinen installierten Resolverfix. Die heruntergeladene Datei
 im Downloadordner durch die neue Fassung ersetzen; die Archivangabe im
 Beispiel durch den tatsächlich vorhandenen Pfad ersetzen:
 

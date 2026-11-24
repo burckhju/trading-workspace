@@ -1,5 +1,15 @@
 # Tatsächliche Depotversorgung — passiver PC-Readback vom 22.11.2026
 
+> **Spätere Ergänzung vom 24.11.2026:** Der
+> [gebundene P02-Journalread](P02_SOURCE_GAP_READBACK_2026-11-24.md) liegt
+> inzwischen vor: alter Gap `JPMORGAN_SNAPSHOT_TIMEOUT`, neuer gespeicherter
+> Bid und V2-Ergebnis `BELOW_ENTRY` auf tatsächlich installiertem v1.5.54.
+> Die unten noch als fehlend bezeichnete enge Ergänzung ist damit erbracht.
+> Die übrige Vierer-Matrix und die damaligen CI-/Arbeitsstände bleiben
+> historische Befunde vom jeweils genannten Datum; es liegt keine neue
+> Gesamtinventur vor. Aktueller Status und nächster Auftrag ausschließlich
+> im [Product Backlog](../planning/PRODUCT_BACKLOG.md#naechster-schnitt).
+
 ## Ergebnis und Nachweisgrenze
 
 **Die Installation von v1.5.52 und ein vollständiger regulärer V2-Lauf sind

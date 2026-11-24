@@ -4,13 +4,61 @@
 
 | Feld | Wert |
 |---|---|
-| Revision | Nachweis- und Statuskonsolidierung 2026-11-19; Fortschreibung auf v1.5.52, Lieferverweis v1.5.53 und Datenversorgungsanalyse am 2026-11-20; passive PC-Diagnose am 2026-11-21, vollständiger Verbraucher-Readback und gezielter P02-Schnitt am 2026-11-22; UI-Fachstruktur A am 2026-11-21 und Integrations-/Liefernachtrag v1.5.54 am 2026-11-22 unter täglichem Workspace |
+| Revision | 24.11.2026: gebundener P02-Readback ausgewertet, tatsächliches v1.5.54 und gespeicherte V2-Teilabdeckung belegt; genau ein weiterer Versorgungsauftrag. Die datierten Nachweise vom 19.–23.11., UI-Fachstruktur A und Liefernotizen bleiben erhalten. |
 | Erstprüfung | 19.11.2026, 19:31:38 Uhr MEZ (Europe/Berlin), auf `254f0bbd52ab42e0120d381e915dc96c1118796c` / `v1.5.51` |
 | Fortschreibung | 20.11.2026, Beginn 13:46:04 Uhr MEZ; Main-/Release-Delta, tatsächliche CI, PR- und Betriebsnachweise erneut geprüft |
 | Geprüfter Produktstand | Fachlicher Daten-/Readervertrag auf `c7db441de36297a98d47cdf28c64b4e5d9994692` / v1.5.52; Backendreader und bestehende Betriebshelfer bis zum unten genannten Main unverändert. Die neue Oberfläche bleibt an ihre eigenen #372-Nachweise gebunden. |
 | Aktueller Main | `9a5e59dac3bb219cbc40641e62e75871eb2ed131`, Mergecommit #373 vom 22.11.2026, 21:35:28 Uhr MEZ, `VERSION=1.5.54`. Das Delta seit #372/febeb922… ändert ausschließlich Versions-/Liefermetadaten und Dokumentation; Backendpfade unverändert. Main ist kein Nachweis einer PC-Installation. |
+| Tatsächlicher PC | v1.5.54 auf `9a5e59dac3bb219cbc40641e62e75871eb2ed131`, im engen privaten Paket vom 24.11.2026 vor/nach verifiziert; letzte vollständige Inventur weiterhin vom 22.11. |
 | Funktion | Einzige maßgebliche Quelle des aktuellen Aufgabenstatus; bestehende PB-/FT-/M-Kennungen und Owner bleiben erhalten |
-| Prüfgrenze | Vollständiger Checkout, Quellprüfung und privater datierter Nutzer-Readback vom 22.11.2026; kein interaktiver PC-/DB-Zugang, keine neue menschliche Gesamtfachabnahme |
+| Prüfgrenze | Vollständiger Checkout, Quellprüfung, Gesamtreadback vom 22.11. und enger P02-Nutzerread vom 24.11.2026; kein interaktiver PC-/DB-Zugang, keine neue Gesamtinventur oder menschliche Gesamtfachabnahme |
+
+<a id="depotdiagnose-20261124"></a>
+## Fortschreibung — P02-Ursache und gespeicherte V2-Teilabdeckung, 24.11.2026
+
+**Der enge P02-Auftrag ist ausgewertet.** Das neue private Paket bindet
+die archivierte Position, ihre ursprünglichen Bewertungsinputs und den
+heutigen gespeicherten Quellenbestand eindeutig. Der
+[Einzelnachweis](../reviews/P02_SOURCE_GAP_READBACK_2026-11-24.md) belegt
+die tatsächliche PC-Installation **v1.5.54/9a5e59d…**, Schema0060 und vier
+gesunde laufende Dienste. Sammlung: **24.11., 18:23:08–18:23:10 Uhr MEZ**.
+
+**Konkreter Fortschritt:** Der historische Unterbrechungsgrund lautet
+`JPMORGAN_SNAPSHOT_TIMEOUT`. Der zuvor empfangene gespeicherte Quote war
+bidlos; dessen ursprüngliche Rohpreis-/Normalisierungsursache bleibt
+unbekannt. Die Gap-Erfassung kann einen gecachten Fehler wiedergeben und
+ist kein sicherer ursprünglicher Netzwerkfehlerzeitpunkt. Auf derselben
+gebundenen Route liegt inzwischen eine tatsächlich gespeicherte
+V2-Bewertung vom **24.11., 18:21:41 Uhr MEZ** vor: `BELOW_ENTRY` /
+`INDICATIVE_BID_BELOW_GROSS_ENTRY`, Bid vorhanden, Empfangsalter **10,456 s**.
+
+**Verbleibende fachliche Grenze:** `ORIGINAL_MARKET_STATUS_NOT_DELIVERED`
+belegt den fehlenden Originalstatus, aber keine neue V2-Preisunterbrechung.
+Original-Bidzeit mit Datum/Zeitzone, passender Original-OPEN-Status und
+seine zeitliche Geltung bleiben für B58 unbelegt. Der Einzelread enthält
+keine neue Gesamtinventur, keine vollständige Verlaufshistorie und keine
+neuen Produktfrist-/B06-/Zustellbelege. Aus der alten Vierer-Matrix wird
+keine heutige „1/4“-Abdeckungsquote abgeleitet.
+
+**Technische Qualifikation getrennt:** Die vier regulären PR-Prüfungen für
+`41a0cf80b1f0702d3322bcf268ed83da8cf84de2` sind erfolgreich abgeschlossen
+([CI-Belege](../reviews/P02_SOURCE_GAP_READBACK_2026-11-24.md#6-codequalifikation-und-weiterführung)).
+Das betrifft den noch offenen Diagnose-/Resolverfix, der auf diesem PC
+nicht installiert ist. Die neue Preisbeobachtung wird ihm nicht
+zugeschrieben. Der heutige Dokumentationsnachtrag ändert keinen Anwendungscode.
+
+**Genau ein nächster Auftrag:** [Eine weitere tatsächlich offene Position
+über die bestehenden Quellen- und Produktowner versorgen](#naechster-schnitt).
+Die früher ungebundenen P01/P03/P04 sind nur archivgebundene Kandidaten;
+ihr heutiger Bestand und Quellenzustand müssen zuerst festgestellt werden.
+Eine erneute P02-Sammlung ist für den abgeschlossenen engen Befund unnötig.
+
+<details>
+<summary>Readback und P02-Vorbereitung vom 20.–23.11.2026 — damalige Arbeitsstände</summary>
+
+Die folgenden datierten Texte bleiben als Historie erhalten. Die damals
+noch fehlende enge P02-Ergänzung liegt seit dem 24.11. vor; maßgeblich sind
+die Fortschreibung oben und der eine aktuelle Auftrag unten.
 
 <a id="depotdiagnose-20261122"></a>
 ## Fortschreibung — tatsächliche Depotversorgung, 22.11.2026
@@ -198,40 +246,44 @@ lesende Diagnoseschnitt und seine Abnahmekriterien bleiben maßgeblich.
 
 </details>
 
+</details>
+
 <a id="aktueller-stand"></a>
-## Aktuelle Einstiegssicht — 22.11.2026
+## Aktuelle Einstiegssicht — 24.11.2026
 
 **Der Gesamtbacklog bleibt offen.** Alle ursprünglichen M0–M11-Zusagen
 sind weiterhin vollständig [zugeordnet](#originalzuordnung). Erneut gelesener
-Main ist `febeb922c0f337029baa7f9d792c37f9f72ba02b` / `VERSION=1.5.53`.
+Main ist `9a5e59dac3bb219cbc40641e62e75871eb2ed131` / `VERSION=1.5.54`.
 Die relevanten Backendreader bleiben an die unveränderte Produktbasis
 `c7db441de36297a98d47cdf28c64b4e5d9994692` gebunden. Genau diese Basis ist
-nun als **v1.5.52 auf dem PC installiert belegt**. Release-/Main-/PC-Stand
+unverändert im aktuellen Main enthalten. **v1.5.54 ist durch den privaten
+Read vom 24.11. auf dem PC installiert belegt.** Release-/Main-/PC-Stand
 bleiben getrennt; ältere CI-Nachweise gelten nur für ihre jeweiligen Commits.
 
 **PC-Lieferumfang dieser Planung:** [PR #369](https://github.com/burckhju/trading-workspace/pull/369) wurde am **20.11.2026 um 15:01:46 Uhr MEZ** als `6c0f9160b91bee4c6c45849c9c47d4c4b5a3bf56` gemergt. Der reine [Bereitstellungsrelease v1.5.53](../releases/V1.5.53-PLANNING-PC-DELIVERY.md) macht diesen Dokumentstand zusammen mit dem unveränderten Produktumfang v1.5.52 über den vorhandenen PC-Updateweg lieferbar. Die konkreten PR-/Main-Prüfungen und der endgültige unveränderliche Tag-Commit werden im Release-PR protokolliert. Dieser Lieferverweis ergänzt den datierten Audit; er ändert keine Teilfähigkeitsbewertung und belegt keine PC-Installation oder fachliche Wirkung. Der [eine nächste Fachauftrag](#naechster-schnitt) gilt auch nach einem Update auf den einschließenden Folgerelease.
 
 **Zusätzlich abgeschlossen seit der Erstprüfung:** Die [Trennung von Produktende und Zahlungstag, erneute Auswertung gespeicherter Originale und der enge lokale XSTU-2026-Originalimport](#market-data-evidence) sind implementiert, qualifiziert, integriert und mit v1.5.52 ausgeliefert. Die früheren Lieferreste für #368 sind damit geschlossen. Ein bereitstehender Importweg belegt keinen tatsächlich ausgeführten Import; der neue private Readback belegt die getrennten Datumsrollen am Verbraucher. Die vollständige Originalupgrade-/Importabnahme bleibt davon getrennt.
 
-**Zuletzt belegter Betrieb ist v1.5.52:** [PC-Readback vom 22.11.2026](../reviews/DEPOT_DATA_READBACK_2026-11-22.md) bestätigt
-Installation, Schema und einen regulären V2-Lauf für vier offene Positionen;
-Einstands- und Fristprüfung jeweils 4/4 Datenprobleme bei null technischen
-Positionsfehlern. Die historischen sechs Laufpositionen aus #367 und vier
-Positionen aus #368 bleiben eigene Zeit-/Mengenschnitte. Ohne die damaligen
-privaten IDs werden identische Produkte nicht aus identischen Zählern
-abgeleitet ([Betriebsevidenz](#betriebsnachweis)).
+**Zuletzt belegter Betrieb ist v1.5.54:** Der [P02-Read vom
+24.11.2026](../reviews/P02_SOURCE_GAP_READBACK_2026-11-24.md) bestätigt
+Installation, Schema, gesunde Dienste und einen gespeicherten V2-Entscheid
+mit Bid. Die letzte vollständige Inventur und Zyklusdiagnose stammen vom
+[22.11.](../reviews/DEPOT_DATA_READBACK_2026-11-22.md): damals vier offene
+Positionen, beide Prüfpfade mit 4/4 Datenproblemen und null technischen
+Positionsfehlern. Historische Sechser-/Viererbefunde und der neue Einzelread
+bleiben eigene Zeit-/Mengenschnitte ([Betriebsevidenz](#betriebsnachweis)).
 
 **Bisherige Teilabschlüsse bleiben erhalten:** Persistente [feste Chart-Watchlist](#pb-012-watchlist) mit S&P 500 und 30 ETFs; [Journal](#pb-019-journal), [Evidence](#pb-019-materialization), [Lessons](#pb-019-lessons) und [historische Korrekturen](#pb-018-currentness); [Bruttoauswertungen](#pb-019-performance-evaluations), [vier Basisstatistiken](#pb-019-performance-statistics) und [Verkaufsbeitragsgrafik](#pb-019-performance-dashboards); [konkrete Kandidaten-Governance mit gesonderter Aktivierung und Rückkehr](#pb-020-candidate-family). Die zugehörigen Funktionspfade sind gegenüber der Produktbasis `c7db441…` unverändert; die genannten Regressionsergebnisse sind ausschließlich an diese Produktbasis gebunden. Ihre Implementierung wird nicht erneut eingeplant; offene Fachabnahmen und reale Quellenabdeckung bleiben getrennt.
 
-**Wesentliche Reste:** Der aktuelle Daten- und Installationsstand ist vollständig positionsbezogen diagnostiziert; geeignete Regelabdeckung bleibt 0/4. Bei der bestätigten JPMorgan-Route fehlt noch der konkrete gespeicherte Gapgrund zur Ursachenauflösung. Geeignete BID-Quellen, Stückmaßstäbe, echte Basiswertzuordnung, persönliche Exitwahl, letzter Handelstag und Kalender-/Cutoffbelege bleiben eigenständige Voraussetzungen. Der allgemeine Watchlistumfang, Scanner, Marktbreite, Produktscore, Produktwechsel sowie weitergehende Lern-, Performance- und Modellanforderungen bleiben mit konkreten Entscheidungs-, Implementierungs- oder Abnahmeresten erhalten. Die strenge B58-Versorgung und übrigen B-/F207-Umfänge werden nicht durch die indikative Alternative geschlossen.
+**Wesentliche Reste:** P02 hat einen konkretisierten historischen Gapgrund und einen jüngeren auswertbaren V2-Entscheid. Für die übrigen archivierten Positionen liegt kein neuer Zustandsread vor; die damaligen Quellen-/Einheits-/Basiswert-/Kalenderlücken bleiben zu prüfen. Persönliche Exitwahl, letzter Handelstag, Produktschluss, strenge Originalkurs-/Statusbelege und B06-Grundevidenz bleiben eigenständige Voraussetzungen. Der allgemeine Watchlistumfang, Scanner, Marktbreite, Produktscore, Produktwechsel sowie weitergehende Lern-, Performance- und Modellanforderungen bleiben mit konkreten Entscheidungs-, Implementierungs- oder Abnahmeresten erhalten. Die strenge B58-Versorgung und übrigen B-/F207-Umfänge werden nicht durch die indikative Alternative geschlossen.
 
-**Genau ein nächster Auftrag:** [P02-Versorgungsunterbrechung auf der
-bestehenden JPMorgan-Route auflösen](#naechster-schnitt). Vorhandenes
-Statusjournal und gespeicherte Assessmentinputs gezielt lesen, den
-spezifischen Fehler beim Resolver erhalten und nur einen daraus belegten
-Versorgungsfehler korrigieren. 1/4 V2-Abdeckung ist ein mögliches Ergebnis,
-keine Vorabzusage; neue Provider-/Regel-/Produktivfreigaben folgen daraus
-nicht automatisch.
+**Genau ein nächster Auftrag:** [Eine weitere tatsächlich offene Position
+für V2 versorgen](#naechster-schnitt). Heutige Bindung und gespeicherte
+Quellenkandidaten aus den bestehenden Coverage-Ownern feststellen, den
+belegten Beschaffungs-/Mapping-/Produktrest gezielt schließen und die
+Wirkung beim V2-Verbraucher prüfen. Das Ergebnis ist eine zusätzliche
+beurteilbare Position oder ein exakt belegter verbleibender Daten-/
+Zugangsblocker; neue Provider- und Kostenentscheidungen bleiben gesondert.
 
 ## Pflegevertrag und Statusbedeutung
 
@@ -247,7 +299,7 @@ Die Erstprüfung galt dem Produktcommit 254f0bbd… / v1.5.51. Für diese Fortsc
 
 ## Orientierung und Priorisierung
 
-Die [acht dauerhaften Planungssichten und drei Querschnittsthemen](MODULE_AND_FEATURE_CATALOG.md#planungssichten) sind keine neuen Paketgrenzen. Die [Lieferziele A–D](../foundation/ROADMAP.md#lieferziele) sind keine starre Reihenfolge. **Aktuelle Priorität, am 22.11.2026 bestätigt: Datenversorgung für verlässliche Depotüberwachung in A.** Der frühere Fokus **B: Abschluss/Journal/Lernen** und **C: belastbare Performance** bleibt als ursprüngliches Lieferziel erhalten; die dortigen Daten- und Definitionslücken sind im neuen Versorgungsnachweis ausdrücklich ausgewiesen. D verwendet bestehende Kandidaten-Governance statt Neubau. Governance und Betrieb begleiten alle Ziele. Die positionsweise Verbraucherdiagnose ist seit dem 22.11. ausgewertet; getrennte Produktende-/Zahlungsrollen belegen die begrenzte Verbraucherwirkung des #368-Fixes. Offen bleiben die private Originalupgrade-/Kalenderimport-Detailabnahme und konkrete Datenversorgung. Der eine nächste Auftrag liest den bestehenden P02-Journal-/Assessmentgrund und erhält den spezifischen Fehler im Resolver. Erfolgreicher Runnerbetrieb mit Datenwarnungen ist keine fachliche Positionsabdeckung.
+Die [acht dauerhaften Planungssichten und drei Querschnittsthemen](MODULE_AND_FEATURE_CATALOG.md#planungssichten) sind keine neuen Paketgrenzen. Die [Lieferziele A–D](../foundation/ROADMAP.md#lieferziele) sind keine starre Reihenfolge. **Aktuelle Priorität, am 24.11.2026 fortgeschrieben: Datenversorgung für verlässliche Depotüberwachung in A.** Der frühere Fokus **B: Abschluss/Journal/Lernen** und **C: belastbare Performance** bleibt als ursprüngliches Lieferziel erhalten; die dortigen Daten- und Definitionslücken sind im neuen Versorgungsnachweis ausdrücklich ausgewiesen. D verwendet bestehende Kandidaten-Governance statt Neubau. Governance und Betrieb begleiten alle Ziele. Die positionsweise Verbraucherdiagnose ist seit dem 22.11. ausgewertet; getrennte Produktende-/Zahlungsrollen belegen die begrenzte Verbraucherwirkung des #368-Fixes. Offen bleiben die private Originalupgrade-/Kalenderimport-Detailabnahme und konkrete Datenversorgung. Der enge P02-Read ist am 24.11. ausgewertet; ein gespeicherter V2-Entscheid mit Bid ist belegt. Der eine nächste Auftrag klärt die aktuelle Bindung der zuvor ungebundenen Kandidaten und versorgt eine weitere offene Position über die bestehenden Owner. Erfolgreicher Runnerbetrieb mit Datenwarnungen ist keine fachliche Positionsabdeckung.
 
 P0–P3 bleiben verwendbar. Weder eine fehlende Betriebsabnahme noch eine offene Umfangsentscheidung erzeugt einen pauschalen Rücksprung aller Implementierungen. Ein enger V1-Ausschluss entfernt keine ursprüngliche Anforderung; dafür wäre eine ausdrückliche datierte Produktentscheidung nötig.
 
@@ -429,14 +481,14 @@ Alle neun tatsächlich ausgeführten Jobs dieses alten PR-Standes waren erfolgre
 
 **Nicht lokal oder am PC neu ausgeführt:** vollständige Backend-/Frontend-/Browserprüfungen, Datenbankmigration, PC-Installation, Reparse gespeicherter Originale, Kalenderimport, Providerabruf, Modellaktivierung oder Zustellung. Der Dokumentdiff verändert keine Anwendung. Die oben gelesenen Läufe sind bereits ausgeführte CI-Nachweise, keine Behauptung eines eigenen lokalen Neulaufs. Reguläre CI des fortgeschriebenen Dokumentations-Heads wird im bestehenden PR separat an dessen tatsächlichen Head/Testmerge gebunden. CI-Artefaktarchive wurden für diese Fortschreibung nicht heruntergeladen.
 
-**Aktuelle Zugriffsgrenze:** Der private Readback vom 22.11.2026 liegt
-vollständig vor; seine Installation, vier Verbraucherbindungen, Gründe und
-Abdeckungsgrenzen wurden ausgewertet. Ein interaktiver PC-/DB-Zugang,
-Originalbytes/Parserhead und die ältere private Matrix aus #368 liegen nicht
-vor. Für P02 fehlt konkret der bestehende Journal-/Assessmentinput-Gap,
-der in den sechs vorhandenen Positions-GETs nicht ausgegeben wird. Die
-[enge passive Ergänzung](../reviews/DEPOT_DATA_READBACK_2026-11-22.md#engste-noch-fehlende-passive-ergänzung)
-ersetzt eine weitere allgemeine Bestandsabfrage.
+**Aktuelle Zugriffsgrenze:** Der vollständige private Readback vom 22.11.
+und die enge P02-Ergänzung vom 24.11. liegen vor und sind ausgewertet.
+Der konkrete historische Gap und die aktuelle gespeicherte P02-Bewertung
+sind damit nicht länger unzugänglich. Ein interaktiver PC-/DB-Zugang,
+die damaligen Rohpreisfelder, vollständige Zwischenbewertungen und aktuelle
+Reads der übrigen Positionen fehlen weiterhin. Der [nächste Auftrag](#naechster-schnitt)
+bündelt ausschließlich die für deren Quellenbindung fehlenden vorhandenen
+Coverage-Fakten; kein erneuter P02- oder unveränderter Gesamtexport.
 
 <a id="betriebsnachweis"></a>
 ### Zeitliche Einordnung der Betriebsevidenz
@@ -448,9 +500,9 @@ ersetzt eine weitere allgemeine Bestandsabfrage.
 | 19.11.2026, PC-Rückmeldung in #367 | v1.5.51 auf `254f0bbd…`, vier Dienste healthy, Readiness 200, Alembic 0060; V2 zentral aktiviert, Review-Zustellung deaktiviert | Installation/Aktivierung dieses Stands als abgegrenzte Teilaufgabe abgeschlossen; historischer PC-Stand, inzwischen durch den datierten v1.5.52-Readback ergänzt; kein allgemeiner Fachabnahmebeleg |
 | 19.11.2026, Zyklus 18:06:42–18:07:17 Uhr MEZ; Audit 18:13:12 Uhr MEZ, #367 | 35,307 Sekunden, `enabled=true`, `running=true`, `last_error=null`; Entry und Deadline je 6 bewertet / 6 aktive Datenprobleme / 0 technische Positionsfehler | Tatsächlicher V2-Runnerbetrieb auf v1.5.51 belegt. Die Frist-Hinweise sind Datenwarnungen `POSITION_DATA_UNAVAILABLE`; fachliche Abdeckung bleibt offen |
 | Neuere Ursachenbeschreibung in #368, erstmals veröffentlicht am 19.11.2026 ab 19:31:56 Uhr MEZ | Vollständiger lesender Readback für 4 damals offene Positionen auf v1.5.51; jeweils Einstands-/Fristdatenprobleme. Produktende/Zahlungstag falsch verglichen, Kalenderfehler HTTP 403; weitere Beleg-/Zuordnungslücken benannt | Historischer privater Referenzbestand und Ursachenbefund. Dessen exakte Einzelzeilen und Rohdiagnosezeitpunkt fehlen hier. Vier offene Positionen und frühere sechs Laufpositionen sind verschiedene Zeit-/Mengenschnitte; daraus folgt keine heutige Bestandszahl |
-| 19.11.2026, Integration von #368 und Veröffentlichung um 20:45:01 Uhr MEZ | Fix in Main `c7db441de36297a98d47cdf28c64b4e5d9994692`, aktuelle CI erfolgreich, Tag v1.5.52 veröffentlicht | Softwareintegration/-auslieferung abgeschlossen. **Inzwischen durch den PC-Readback vom 22.11. ergänzt:** Installation und regulärer V2-Zyklus belegt, weiter 0/4 vollständig auswertbar; vollständiger Original-Reparse/Kalenderimport bleibt offen. Kein Betriebsnachweis aus Main-CI abgeleitet |
-
+| 19.11.2026, Integration von #368 und Veröffentlichung um 20:45:01 Uhr MEZ | Fix in Main `c7db441de36297a98d47cdf28c64b4e5d9994692`, aktuelle CI erfolgreich, Tag v1.5.52 veröffentlicht | Softwareintegration/-auslieferung abgeschlossen. **Inzwischen durch den PC-Readback vom 22.11. ergänzt:** Installation und regulärer V2-Zyklus belegt, am 22.11. damals 0/4 vollständig auswertbar; vollständiger Original-Reparse/Kalenderimport bleibt offen. Kein Betriebsnachweis aus Main-CI abgeleitet |
 | 22.11.2026, Readback 20:50:41–20:50:45 Uhr MEZ, letzter Zyklus 20:44:54–20:45:35 Uhr MEZ | [PC-Readback vom 22.11.2026](../reviews/DEPOT_DATA_READBACK_2026-11-22.md): v1.5.52/c7db441…, Schema0060, vier gesunde laufende Dienste, 30/30 GETs, vier offene Positionen; beide V2-Pfade je vier Datenprobleme und null technische Positionsfehler | Tatsächliche Installation und vollständige Verbraucherdiagnose belegt. 4/4 Ausführungswährungen vorhanden; drei Routen fehlen, eine ohne Bid; historische/Produkt-/Fristlücken bleiben. Keine Gesamtfachabnahme. |
+| 24.11.2026, enger Read 18:23:08–18:23:10 Uhr MEZ; gespeicherte P02-Bewertung 18:21:41 Uhr MEZ | [P02-Nachweis](../reviews/P02_SOURCE_GAP_READBACK_2026-11-24.md): tatsächliches v1.5.54/9a5e59d…, Schema0060, vier gesunde Dienste; archivierter `JPMORGAN_SNAPSHOT_TIMEOUT`; neuer Bid und `BELOW_ENTRY`, Empfangsalter 10,456 s | Enger Diagnoseauftrag erfüllt; Statusgap ohne neue V2-Preisunterbrechung. Originalzeit/-status weiter unqualifiziert. Keine aktuelle Gesamtinventur, Frist-, B06- oder Verlaufsabnahme. Kein Zusammenhang mit noch nicht installiertem PR-370-Fix behauptet. |
 
 <a id="pr-abgleich"></a>
 ### Aktuelle PRs gegenüber Main
@@ -2262,7 +2314,7 @@ Nachweis vollständiger realer Währungsabdeckung oder einer neuen Auslieferung.
 | Nachweisfeld | Einordnung |
 |---|---|
 | Zuordnung | M1: Datenprovider; M2: Datenbasis; spätere TC-001-Fähigkeit. Bereich/Querschnitt: 2. Bestehender Bezug: TC-001; fachliche Consumer bleiben Eigentümer ihrer Ergebnisse. Lieferziel: A. |
-| Arbeitsstatus | Released — Qualitäts-/Provenienzverträge; Observed — vollständiger Verbraucherbefund vom 22.11.; Datenversorgung/Regelabdeckung offen. |
+| Arbeitsstatus | Released — Qualitäts-/Provenienzverträge; Observed — Gesamtread vom 22.11. und gebundene P02-V2-Teilabdeckung vom 24.11.; weitere Datenversorgung und strenge Regelabdeckung offen. |
 | Abgeschlossener Teilumfang | Technische Qualitäts-/Zeittrennung, V2-Verarbeitung und Datenproblemepisoden sind ausgeliefert. Zusätzlich ist der falsche Produktende-/Zahlungstagvergleich beim Product-Owner in v1.5.52 korrigiert, qualifiziert und veröffentlicht; diese technische Ursache ist keine offene Implementierungsaufgabe mehr. |
 | Soll / Nicht-Soll | **Soll:** Fehlende, veraltete, indikative und nicht anwendbare Daten sowie Kurs-, Abruf- und Erfassungszeiten unterscheiden. **Nicht-Soll:** Erfolgreicher Abruf ersetzt keine aktuelle verwertbare Quote; unbekannt ist nicht Null oder geringes Risiko. |
 | Befundklasse / Lückenart | Vorhandene Funktion mit offener realer Datenversorgung und Betriebswirkungsprüfung. **Art der Restarbeit:** Quellen-/Einheiten-/Identitätsqualifikation, persönliche Entscheidungen und Nachweis am privaten Bestand; Datumsfix technisch abgeschlossen. |
@@ -2270,8 +2322,8 @@ Nachweis vollständiger realer Währungsabdeckung oder einer neuen Auslieferung.
 | Test / Commit | [tests/unit/backend/features/market_data/test_refresh_quality_diagnostics.py](../../tests/unit/backend/features/market_data/test_refresh_quality_diagnostics.py); [tests/unit/backend/features/market_data/test_saved_quote_evidence.py](../../tests/unit/backend/features/market_data/test_saved_quote_evidence.py); [tests/integration/backend/database/test_indicative_entry_v2_postgres.py](../../tests/integration/backend/database/test_indicative_entry_v2_postgres.py) Aktuelle Ausführung/Commitbindung: [Main-CI im Nachweisregister](#nachweisregister); kein neuer lokaler Anwendungstest. Zusätzliche v1.5.52-Nachweise: [Parserfälle](../../tests/unit/backend/providers/test_product_review_documents.py), [Originalupgrade](../../tests/unit/backend/features/product/test_product_document_reparse.py), [sequenzielle und konkurrierende PostgreSQL-Upgrades](../../tests/integration/backend/database/test_product_document_reparse_postgres.py), [Kalender-/Importfälle](../../tests/unit/backend/features/market_data/test_review_calendars.py); tatsächlich in der neuen [Main-CI](#nachweisregister) ausgeführt. |
 | Fachliche Abnahme | Quellenmoduspacing Variante 2 war ausdrücklich entschieden; V2 ist eine ausdrücklich beauftragte indikative Alternative. Das ist keine B58- oder vollständige Depotqualifikation. |
 | Software-Auslieferung | Im geprüften Main und veröffentlichten Tag v1.5.52 enthalten; konkrete Softwareauslieferung, keine dadurch erteilte Gesamtfachabnahme. |
-| Betriebsnachweis | PR [#367](https://github.com/burckhju/trading-workspace/pull/367), Nutzerbeleg 19.11.2026: v1.5.51/254f0bbd… installiert, vier Dienste healthy, Readiness 200/ready, Schema 20261118_0060. Audit 18:13:12 MEZ: V2-Zyklus 18:06:42–18:07:17 MEZ, 35,307 s, running=true, last_error=null; Review und Deadline je 6 bewertet/6 Datenprobleme/0 technische Positionsfehler. Kein eigener PC-Zugriff dieser Prüfung. Historische Ursache-/Liefernachweise aus [#368](https://github.com/burckhju/trading-workspace/pull/368) bleiben erhalten. Neuer [PC-Readback vom 22.11.2026](../reviews/DEPOT_DATA_READBACK_2026-11-22.md): v1.5.52/c7db441…, Schema0060, vier offene Positionen, regulärer V2-Zyklus mit 4/4 Einstands- und 4/4 Fristdatenproblemen bei jeweils null technischen Positionsfehlern. Getrennte Produktende-/Zahlungsrollen beobachtet; exakter Parserhead/Originalupgrade und konkreter Kalenderimport dadurch nicht vollständig nachgewiesen. Frühere Sechser-/Viererbefunde werden nicht über Kennungen hinweg gleichgesetzt. |
-| Restarbeit / nächste Abhängigkeit | Aktuelle Felder/Quellen/Identitäten sind in der privaten Vierer-Matrix mit öffentlichen technischen Ursachen belegt. Käufe und historische Kaufwährungen sind vorhanden; drei Kursrouten, Einheits-/Basiswert-/Kalender-/Fristnachweise fehlen. **Einzige nächste Abhängigkeit:** [P02-Gap auflösen und Fehlerweitergabe korrigieren](#naechster-schnitt). Die [Quellen-/Kostenprüfung](../reviews/ISSUER_QUOTE_SOURCE_ACCESS_2026-11-20.md) bleibt datiertes Beschaffungsangebot; tatsächliche Listingdeckung, Rechte und Originalstatus werden nicht daraus abgeleitet. Weiteres Abnahmeziel bleibt die nachvollziehbare getrennte Regelabdeckung je Position, nicht ein laufender Runner. |
+| Betriebsnachweis | PR [#367](https://github.com/burckhju/trading-workspace/pull/367), Nutzerbeleg 19.11.2026: v1.5.51/254f0bbd… installiert, vier Dienste healthy, Readiness 200/ready, Schema 20261118_0060. Audit 18:13:12 MEZ: V2-Zyklus 18:06:42–18:07:17 MEZ, 35,307 s, running=true, last_error=null; Review und Deadline je 6 bewertet/6 Datenprobleme/0 technische Positionsfehler. Kein eigener PC-Zugriff dieser Prüfung. Historische Ursache-/Liefernachweise aus [#368](https://github.com/burckhju/trading-workspace/pull/368) bleiben erhalten. Neuer [PC-Readback vom 22.11.2026](../reviews/DEPOT_DATA_READBACK_2026-11-22.md): v1.5.52/c7db441…, Schema0060, vier offene Positionen, regulärer V2-Zyklus mit 4/4 Einstands- und 4/4 Fristdatenproblemen bei jeweils null technischen Positionsfehlern. Getrennte Produktende-/Zahlungsrollen beobachtet; exakter Parserhead/Originalupgrade und konkreter Kalenderimport dadurch nicht vollständig nachgewiesen. Frühere Sechser-/Viererbefunde werden nicht über Kennungen hinweg gleichgesetzt. Späterer [P02-Read vom 24.11.2026](../reviews/P02_SOURCE_GAP_READBACK_2026-11-24.md): tatsächliches v1.5.54/9a5e59d…, Schema0060 und vier gesunde Dienste; historischer Timeout konkret, jüngeres `BELOW_ENTRY` mit Bid um 18:21:41 Uhr MEZ. Kein neuer Gesamtzyklus-/Inventar-/Fristnachweis. |
+| Restarbeit / nächste Abhängigkeit | Die Vierer-Matrix vom 22.11. belegt damalige Käufe/Kaufwährungen sowie Quellen-/Einheits-/Basiswert-/Kalender-/Fristlücken. Der P02-Gap ist seit 24.11. konkretisiert, eine jüngere gespeicherte V2-Bewertung mit Bid beobachtet. **Einzige nächste Abhängigkeit:** [eine weitere tatsächlich offene Position versorgen](#naechster-schnitt), beginnend mit aktueller Archiv-/Quellenbindung der zuvor unbestätigten Kandidaten. Die [Quellen-/Kostenprüfung](../reviews/ISSUER_QUOTE_SOURCE_ACCESS_2026-11-20.md) bleibt datiertes Beschaffungsangebot; tatsächliche Listingdeckung, Rechte und Originalstatus werden nicht daraus abgeleitet. Weitere Abnahme bleibt getrennte Regelabdeckung am Verbraucher, kein Runnerzähler. |
 | Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
 
 </details>
@@ -2285,7 +2337,7 @@ Nachweis vollständiger realer Währungsabdeckung oder einer neuen Auslieferung.
 | Nachweisfeld | Einordnung |
 |---|---|
 | Zuordnung | M10: Datenaktualisierung. Bereich/Querschnitt: 2, 6; Querschnitt: technische Qualität/Betrieb. Bestehender Bezug: TC-001; bestehender Scheduler, keine neue FT-Nummer. Lieferziel: A. |
-| Arbeitsstatus | Released — Scheduler-/Lane-/Pacing-Schnitte; Observed — aktiver Refresh im datierten v1.5.52-Readback; tatsächliche Kursabdeckung weiter offen. |
+| Arbeitsstatus | Released — Scheduler-/Lane-/Pacing-Schnitte; Observed — Refresh im v1.5.52-Read und späterer gespeicherter P02-Bid unter v1.5.54; kontinuierliche Versorgung und Gesamtdeckung nicht belegt. |
 | Abgeschlossener Teilumfang | Pacing-/Lane-/Discovery-Korrekturen integriert und in v1.5.51 ausgeliefert; technische Umsetzung/Integration abgeschlossen. |
 | Soll / Nicht-Soll | **Soll:** Abrufzustände und Datenbereitschaft nachvollziehbar zeigen; vorhandene Providergrenzen erhalten. **Nicht-Soll:** Kein Diagnoselauf mit unbeabsichtigtem Schreiben/Versand; neue Planung ist keine Providerzustimmung. |
 | Befundklasse / Lückenart | Vorhandene Fähigkeit mit ausdrücklich begrenztem Abschluss und noch fehlender fachlicher/Betriebs-/Umfangsprüfung. **Art der Restarbeit:** Betriebsprüfung und Datenversorgung. |
@@ -2293,8 +2345,8 @@ Nachweis vollständiger realer Währungsabdeckung oder einer neuen Auslieferung.
 | Test / Commit | [tests/unit/backend/features/market_data/test_refresh_lanes.py](../../tests/unit/backend/features/market_data/test_refresh_lanes.py); [tests/unit/backend/features/market_data/test_refresh_source_modes.py](../../tests/unit/backend/features/market_data/test_refresh_source_modes.py); [tests/unit/backend/features/market_data/test_refresh_backlog.py](../../tests/unit/backend/features/market_data/test_refresh_backlog.py); [tests/integration/backend/test_refresh_diagnostics_api.py](../../tests/integration/backend/test_refresh_diagnostics_api.py) Aktuelle Ausführung/Commitbindung: [Main-CI im Nachweisregister](#nachweisregister); kein neuer lokaler Anwendungstest. |
 | Fachliche Abnahme | Begrenzte Pacing-Entscheidung vom 21.10. erhalten; Vollabdeckung aller Quellen kein Testschluss. |
 | Software-Auslieferung | Im geprüften Main und veröffentlichten Tag v1.5.52 enthalten; konkrete Softwareauslieferung, keine dadurch erteilte Gesamtfachabnahme. |
-| Betriebsnachweis | PR [#367](https://github.com/burckhju/trading-workspace/pull/367) belegt Monitoring-Hintergrundlauf; Audit besitzt separate Quote-Refresh-Statistik. Diese qualifiziert keine V2-Eingänge; vollständige Scheduler-/Datenabdeckung weiter nicht nachgewiesen. Historische Ursache-/Liefernachweise aus [#368](https://github.com/burckhju/trading-workspace/pull/368) bleiben erhalten. Neuer [PC-Readback vom 22.11.2026](../reviews/DEPOT_DATA_READBACK_2026-11-22.md): v1.5.52/c7db441…, Schema0060, vier offene Positionen, regulärer V2-Zyklus mit 4/4 Einstands- und 4/4 Fristdatenproblemen bei jeweils null technischen Positionsfehlern. Getrennte Produktende-/Zahlungsrollen beobachtet; exakter Parserhead/Originalupgrade und konkreter Kalenderimport dadurch nicht vollständig nachgewiesen. Frühere Sechser-/Viererbefunde werden nicht über Kennungen hinweg gleichgesetzt. |
-| Restarbeit / nächste Abhängigkeit | Drei offene Positionen enden ohne bestätigte Route und ohne Abrufversuch; P02 hat eine bestätigte Route, aber keinen verwendbaren Bid. Prozesslokale Zähler und Sonntagsmoment belegen keine dauerhafte Überlastung. **Einzige nächste Abhängigkeit:** [gespeicherten P02-Gap und maskierte Resolverursache auflösen](#naechster-schnitt); bestehenden Scheduler/Pacing/Backoff weiterverwenden. Abschluss bleibt originalgetreue Fehler-/Retention-/Zeitweitergabe und tatsächlicher Consumerbeleg, keine Intervallverkürzung als Datenersatz. |
+| Betriebsnachweis | PR [#367](https://github.com/burckhju/trading-workspace/pull/367) belegt Monitoring-Hintergrundlauf; Audit besitzt separate Quote-Refresh-Statistik. Diese qualifiziert keine V2-Eingänge; vollständige Scheduler-/Datenabdeckung weiter nicht nachgewiesen. Historische Ursache-/Liefernachweise aus [#368](https://github.com/burckhju/trading-workspace/pull/368) bleiben erhalten. Neuer [PC-Readback vom 22.11.2026](../reviews/DEPOT_DATA_READBACK_2026-11-22.md): v1.5.52/c7db441…, Schema0060, vier offene Positionen, regulärer V2-Zyklus mit 4/4 Einstands- und 4/4 Fristdatenproblemen bei jeweils null technischen Positionsfehlern. Getrennte Produktende-/Zahlungsrollen beobachtet; exakter Parserhead/Originalupgrade und konkreter Kalenderimport dadurch nicht vollständig nachgewiesen. Frühere Sechser-/Viererbefunde werden nicht über Kennungen hinweg gleichgesetzt. Späterer [P02-Read vom 24.11.2026](../reviews/P02_SOURCE_GAP_READBACK_2026-11-24.md): tatsächliches v1.5.54/9a5e59d…, Schema0060 und vier gesunde Dienste; historischer Timeout konkret, jüngeres `BELOW_ENTRY` mit Bid um 18:21:41 Uhr MEZ. Kein neuer Gesamtzyklus-/Inventar-/Fristnachweis. |
+| Restarbeit / nächste Abhängigkeit | Am 22.11. endeten drei Positionen ohne bestätigte Route; P02 hatte einen bidlosen Bestand und einen später erfassten `JPMORGAN_SNAPSHOT_TIMEOUT`. Am 24.11. ist ein jüngerer Bid mit V2-Verbraucherwirkung gespeichert. Weder ursprüngliche Netzwerkursache noch erster Wiederherstellungszeitpunkt sind belegt. **Einzige nächste Abhängigkeit:** [eine weitere offene Position über bestehende Quellenauswahl versorgen](#naechster-schnitt). Scheduler/Pacing/Backoff beibehalten; konkrete Kandidaten-/Ausschlussgründe klären. Keine unbelegte Intervallverkürzung oder neue Transportreparatur aus dem historischen Timeout ableiten. |
 | Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
 
 <details>
@@ -2334,8 +2386,8 @@ historische Nachweise, keine erneute Implementierungsabhängigkeit.
 | Test / Commit | [tests/integration/backend/database/test_market_status_observations_postgres.py](../../tests/integration/backend/database/test_market_status_observations_postgres.py); [tests/integration/backend/database/test_session_evidence_postgres.py](../../tests/integration/backend/database/test_session_evidence_postgres.py); [tests/integration/backend/database/test_product_price_scale_evidence_postgres.py](../../tests/integration/backend/database/test_product_price_scale_evidence_postgres.py); [tests/integration/backend/database/test_review_readiness_postgres.py](../../tests/integration/backend/database/test_review_readiness_postgres.py); [tests/integration/backend/database/test_product_deadline_choice_postgres.py](../../tests/integration/backend/database/test_product_deadline_choice_postgres.py) Aktuelle Ausführung/Commitbindung: [Main-CI im Nachweisregister](#nachweisregister); kein neuer lokaler Anwendungstest. Zusätzliche v1.5.52-Nachweise: [Parserfälle](../../tests/unit/backend/providers/test_product_review_documents.py), [Originalupgrade](../../tests/unit/backend/features/product/test_product_document_reparse.py), [sequenzielle und konkurrierende PostgreSQL-Upgrades](../../tests/integration/backend/database/test_product_document_reparse_postgres.py), [Kalender-/Importfälle](../../tests/unit/backend/features/market_data/test_review_calendars.py); tatsächlich in der neuen [Main-CI](#nachweisregister) ausgeführt. |
 | Fachliche Abnahme | V2-Original-/Referenzmarkt-/Historienannahmen ausdrücklich als begrenzt beauftragt; Annahme historischer Kontinuität und Nutzeroriginal sind keine unabhängige Quellenprüfung. |
 | Software-Auslieferung | Im geprüften Main und veröffentlichten Tag v1.5.52 enthalten; konkrete Softwareauslieferung, keine dadurch erteilte Gesamtfachabnahme. |
-| Betriebsnachweis | Installation des damaligen v1.5.51-Codes durch PR [#367](https://github.com/burckhju/trading-workspace/pull/367) belegt; Nutzung und fachliche Abnahme genau dieses Teilpfads nicht separat nachgewiesen. Historische Ursache-/Liefernachweise aus [#368](https://github.com/burckhju/trading-workspace/pull/368) bleiben erhalten. Neuer [PC-Readback vom 22.11.2026](../reviews/DEPOT_DATA_READBACK_2026-11-22.md): v1.5.52/c7db441…, Schema0060, vier offene Positionen, regulärer V2-Zyklus mit 4/4 Einstands- und 4/4 Fristdatenproblemen bei jeweils null technischen Positionsfehlern. Getrennte Produktende-/Zahlungsrollen beobachtet; exakter Parserhead/Originalupgrade und konkreter Kalenderimport dadurch nicht vollständig nachgewiesen. Frühere Sechser-/Viererbefunde werden nicht über Kennungen hinweg gleichgesetzt. |
-| Restarbeit / nächste Abhängigkeit | Getrennte Produktende-/Zahlungsrollen sind im neuen Verbraucherbefund bei 4/4 beobachtet; der falsche aktuelle Datumswiderspruch fehlt. Aktueller KID-Parserhead, genau eine Originalupgrade-Folgerevision und konkrete Kalenderimportherkunft bleiben gezielt zu belegen. Produktmaßstäbe, ein Produkt-/Basiswertkonflikt, Originalstatus/-zeit und B06-Grundevidenz bleiben offen; vorhandene Käufe/Währungen nicht neu erfassen. **Einzige nächste Abhängigkeit:** [P02-Statusjournal/Assessmentinputs](#naechster-schnitt). Die abgeschlossene Implementierung/Auslieferung wird nicht wiederholt; erhaltene Originalupgrade-/Importabnahmegrenzen gelten weiter. |
+| Betriebsnachweis | Installation des damaligen v1.5.51-Codes durch PR [#367](https://github.com/burckhju/trading-workspace/pull/367) belegt; Nutzung und fachliche Abnahme genau dieses Teilpfads nicht separat nachgewiesen. Historische Ursache-/Liefernachweise aus [#368](https://github.com/burckhju/trading-workspace/pull/368) bleiben erhalten. Neuer [PC-Readback vom 22.11.2026](../reviews/DEPOT_DATA_READBACK_2026-11-22.md): v1.5.52/c7db441…, Schema0060, vier offene Positionen, regulärer V2-Zyklus mit 4/4 Einstands- und 4/4 Fristdatenproblemen bei jeweils null technischen Positionsfehlern. Getrennte Produktende-/Zahlungsrollen beobachtet; exakter Parserhead/Originalupgrade und konkreter Kalenderimport dadurch nicht vollständig nachgewiesen. Frühere Sechser-/Viererbefunde werden nicht über Kennungen hinweg gleichgesetzt. Späterer [P02-Read vom 24.11.2026](../reviews/P02_SOURCE_GAP_READBACK_2026-11-24.md): tatsächliches v1.5.54/9a5e59d…, Schema0060 und vier gesunde Dienste; historischer Timeout konkret, jüngeres `BELOW_ENTRY` mit Bid um 18:21:41 Uhr MEZ. Kein neuer Gesamtzyklus-/Inventar-/Fristnachweis. |
+| Restarbeit / nächste Abhängigkeit | Getrennte Produktende-/Zahlungsrollen waren am 22.11. bei 4/4 beobachtet; der falsche Datumswiderspruch fehlte. Aktueller KID-Parserhead, genau eine Originalupgrade-Folgerevision und konkrete Kalenderimportherkunft bleiben gezielt zu belegen. Der P02-Journal-/Assessmentread ist am 24.11. abgeschlossen. Produktmaßstäbe, der damalige Produkt-/Basiswertkonflikt, Originalstatus/-zeit und B06-Grundevidenz bleiben offen; vorhandene Käufe/Währungen nicht neu erfassen. **Einzige nächste Abhängigkeit:** [Quellen- und erforderliche Produktbelege für eine weitere offene Position](#naechster-schnitt). Erhaltene Originalupgrade-/Importabnahmegrenzen gelten weiter. |
 | Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
 
 </details>
@@ -2369,16 +2421,16 @@ historische Nachweise, keine erneute Implementierungsabhängigkeit.
 | Nachweisfeld | Einordnung |
 |---|---|
 | Zuordnung | M10: Regelüberwachung. Bereich/Querschnitt: 6. Bestehender Bezug: Position Monitoring & Alert Capability; FT noch offen. Lieferziel: A. |
-| Arbeitsstatus | Observed — V2-Ausführung und konkrete Datenprobleme auf v1.5.52; Released — technische Teilpfade einschließlich Datumsfix; Business Review — reale geeignete Teilabdeckung und weitergehender Gesamtumfang. |
-| Abgeschlossener Teilumfang | Ausgelieferte Reader, B04/B57-Rechenkern, indikative V2 und Produktfristreview bleiben abgeschlossen. Neu: tatsächliche v1.5.52-Installation und regulärer V2-Zyklus, vollständige Vierer-Ursachenmatrix und getrennte Produktende-/Zahlungsrollen am Verbraucher belegt. Vollständige Originalupgrade-/fachliche Depotabnahme ist dadurch nicht erteilt. |
+| Arbeitsstatus | Observed — Gesamtzyklus mit Datenproblemen auf v1.5.52 und gespeicherte P02-V2-Teilabdeckung auf v1.5.54 am 24.11.; Released — technische Teilpfade einschließlich Datumsfix; Business Review — übrige reale Regelabdeckung und Gesamtumfang. |
+| Abgeschlossener Teilumfang | Ausgelieferte Reader, B04/B57-Rechenkern, indikative V2 und Produktfristreview bleiben abgeschlossen. Neu: tatsächliche v1.5.52-Installation und regulärer V2-Zyklus, vollständige Vierer-Ursachenmatrix und getrennte Produktende-/Zahlungsrollen am Verbraucher belegt. Vollständige Originalupgrade-/fachliche Depotabnahme ist dadurch nicht erteilt. Am 24.11. zusätzlich: archivgebundener P02-Gapgrund und jüngerer tatsächlicher V2-Entscheid `BELOW_ENTRY` mit Bid auf v1.5.54; keine aktuelle Gesamtquote. |
 | Soll / Nicht-Soll | **Soll:** Effektive Positions-/Managementregeln mit richtiger Instrument-/Währungsbasis auswerten; deduplizierte fachliche Alerts erhalten. **Nicht-Soll:** Alert ist keine Notification, kein SELL und keine automatische Stop-/Zieländerung. |
-| Befundklasse / Lückenart | Vorhandene Funktion mit konkret belegten Daten-/Zuordnungs-/Entscheidungslücken. Datumsfix wirkt am Verbraucher; fachliche Abdeckung weiterhin0/4. **Art der Restarbeit:** gezielte Versorgung/Korrektur beim bestehenden Owner und Umsetzung der erhaltenen übrigen F207-Reste. |
+| Befundklasse / Lückenart | Vorhandene Funktion mit konkret belegten Daten-/Zuordnungs-/Entscheidungslücken. Datumsfix wirkt am Verbraucher; P02 ist am 24.11. indikativ beurteilbar gespeichert, übrige Positionen nicht neu gelesen. **Art der Restarbeit:** gezielte Versorgung beim bestehenden Owner und Umsetzung der erhaltenen übrigen F207-Reste. |
 | Implementierung / Consumer | Runner komponiert getrennt alte Stop-/Ziel-Cycle, Risiko, B04/B57, indikative V1/V2 und kursfreie Produkttermine. V2 hat persistente Bewertungen/Episoden/Alerts, gemeinsame Familie über V1/V2, qualitätsgebundene Erholung und Vollverkaufsbehandlung. ProductDeadline hat eigene Bewertungen/Episoden/Outbox. B04/B57 streng implementiert; QUALIFIED_B58_PATHS=() und Hebeltrader-Scope getrennt. Passive Indicative/Deadline-Reads mit READ ONLY, beide explizit full_baseline_activated=false; Deadline qualified_b05=false und product_cutoff_status=UNVERIFIED. Quellen: [position_monitoring/service/runtime.py](../../backend/app/features/position_monitoring/service/runtime.py), [runner.py](../../backend/app/features/position_monitoring/service/runner.py), indicative_entry*.py, product_deadline_review*.py, [hebeltrader_b58_sources.py](../../backend/app/features/position_monitoring/service/hebeltrader_b58_sources.py); API `__init__.py`; [PositionDetails.tsx](../../frontend/src/features/operational_workspace/components/PositionDetails.tsx) / [IndicativeEntryObservation.tsx](../../frontend/src/features/operational_workspace/components/IndicativeEntryObservation.tsx) / [TradeAlertsPanel.tsx](../../frontend/src/features/alert/components/TradeAlertsPanel.tsx). Seit v1.5.52 liefert der bestehende Product-Owner getrennte Datumsrollen; ProductDeadlineInputs übernimmt sie in das gespeicherte product_evidence. maturity_on bleibt Produktende. Die Monitoringrouter und der Entry-DTO wurden dafür nicht erweitert; Original-/Parserbelege werden zusätzlich beim Product-Owner gelesen. |
 | Test / Commit | [tests/integration/backend/database/test_indicative_entry_v2_postgres.py](../../tests/integration/backend/database/test_indicative_entry_v2_postgres.py); [tests/integration/backend/database/test_indicative_entry_postgres.py](../../tests/integration/backend/database/test_indicative_entry_postgres.py); [tests/integration/backend/database/test_product_deadline_review_postgres.py](../../tests/integration/backend/database/test_product_deadline_review_postgres.py); [tests/unit/backend/features/position_monitoring/test_indicative_entry_read_migration.py](../../tests/unit/backend/features/position_monitoring/test_indicative_entry_read_migration.py); [frontend/src/features/operational_workspace/components/IndicativeEntryObservation.test.tsx](../../frontend/src/features/operational_workspace/components/IndicativeEntryObservation.test.tsx) Aktuelle Ausführung/Commitbindung: [Main-CI im Nachweisregister](#nachweisregister); kein neuer lokaler Anwendungstest. |
 | Fachliche Abnahme | V2 als ausdrückliche Alternative beauftragt; volle B01–B58-Baseline bleibt unverändert, B08 ausgeschlossen, B07 eigenständig. Technische Durchläufe ersetzen keine vollständige fachliche Depotabnahme. |
 | Software-Auslieferung | Im geprüften Main und veröffentlichten Tag v1.5.52 enthalten; konkrete Softwareauslieferung, keine dadurch erteilte Gesamtfachabnahme. |
-| Betriebsnachweis | PR [#367](https://github.com/burckhju/trading-workspace/pull/367), Nutzerbeleg 19.11.2026: v1.5.51/254f0bbd… installiert, vier Dienste healthy, Readiness 200/ready, Schema 20261118_0060. Audit 18:13:12 MEZ: V2-Zyklus 18:06:42–18:07:17 MEZ, 35,307 s, running=true, last_error=null; Review und Deadline je 6 bewertet/6 Datenprobleme/0 technische Positionsfehler. Kein eigener PC-Zugriff dieser Prüfung. Historische Ursache-/Liefernachweise aus [#368](https://github.com/burckhju/trading-workspace/pull/368) bleiben erhalten. Neuer [PC-Readback vom 22.11.2026](../reviews/DEPOT_DATA_READBACK_2026-11-22.md): v1.5.52/c7db441…, Schema0060, vier offene Positionen, regulärer V2-Zyklus mit 4/4 Einstands- und 4/4 Fristdatenproblemen bei jeweils null technischen Positionsfehlern. Getrennte Produktende-/Zahlungsrollen beobachtet; exakter Parserhead/Originalupgrade und konkreter Kalenderimport dadurch nicht vollständig nachgewiesen. Frühere Sechser-/Viererbefunde werden nicht über Kennungen hinweg gleichgesetzt. |
-| Restarbeit / nächste Abhängigkeit | **Aktuell 22.11.2026:** Gesamtreadback ausgewertet, Installation/Zyklus und vier konkrete Ursachenprofile belegt. [P02-Versorgungsunterbrechung auflösen](#naechster-schnitt) ist der einzige nächste Auftrag. Historische Kaufwährungen sind bei allen vier vorhanden; weitere Produkt-/Quellen-/Kalender-/Fristlücken bleiben beim zuständigen Owner. **B04/B57/B58:** Produktionsregistry leer; eigener Original-BID und Statuszeit/-geltung samt realer Listinglieferung und Recovery sind nicht qualifiziert belegt. Ein neuer Feed braucht außerdem qualifizierten Adapter-/Zeitsemantikanschluss. **B05/B20:** V2 liefert nur getrennten begrenzten Fristreview; Exitlisting, letzter Handelstag, Folgekalender und individueller Produktschluss bleiben erforderliche Belege. **F207-2/B06:** historische Basiswerttrades zu beitragenden Käufen, ursprüngliche Ziele/Zieltreffer, vergleichbarer höchster Schutzboden, Bekanntgabe, Z1-Zählung, weitere Überwachung und Korrekturklärung bleiben offen. **F207-5:** vollständige gemeinsame Meldungsdarstellung, Zustands-/Versions-/Betriebsabnahme gesondert; Teilpfade ersetzen Gesamtumfang nicht. B07 separat, B08 ausgeschlossen. V1/V2 bleiben ausdrücklich freigegebene Alternativen mit eigener begrenzter Aussage, keine Lockerung der strengen Regeln. [Versorgungsnachweis vom 20.11.2026](../reviews/DEPOT_DATA_SUPPLY_2026-11-20.md) bindet sämtliche Datenanforderungen und Beschaffungsszenarien; keine neue Providerfreigabe oder Produktivänderung. Die weitere [Restabnahme](#monitoring-restabnahme) erhält die Abschlussgrenzen für diese Teilumfänge. |
+| Betriebsnachweis | PR [#367](https://github.com/burckhju/trading-workspace/pull/367), Nutzerbeleg 19.11.2026: v1.5.51/254f0bbd… installiert, vier Dienste healthy, Readiness 200/ready, Schema 20261118_0060. Audit 18:13:12 MEZ: V2-Zyklus 18:06:42–18:07:17 MEZ, 35,307 s, running=true, last_error=null; Review und Deadline je 6 bewertet/6 Datenprobleme/0 technische Positionsfehler. Kein eigener PC-Zugriff dieser Prüfung. Historische Ursache-/Liefernachweise aus [#368](https://github.com/burckhju/trading-workspace/pull/368) bleiben erhalten. Neuer [PC-Readback vom 22.11.2026](../reviews/DEPOT_DATA_READBACK_2026-11-22.md): v1.5.52/c7db441…, Schema0060, vier offene Positionen, regulärer V2-Zyklus mit 4/4 Einstands- und 4/4 Fristdatenproblemen bei jeweils null technischen Positionsfehlern. Getrennte Produktende-/Zahlungsrollen beobachtet; exakter Parserhead/Originalupgrade und konkreter Kalenderimport dadurch nicht vollständig nachgewiesen. Frühere Sechser-/Viererbefunde werden nicht über Kennungen hinweg gleichgesetzt. Späterer [P02-Read vom 24.11.2026](../reviews/P02_SOURCE_GAP_READBACK_2026-11-24.md): tatsächliches v1.5.54/9a5e59d…, Schema0060 und vier gesunde Dienste; historischer Timeout konkret, jüngeres `BELOW_ENTRY` mit Bid um 18:21:41 Uhr MEZ. Kein neuer Gesamtzyklus-/Inventar-/Fristnachweis. |
+| Restarbeit / nächste Abhängigkeit | **Aktuell 24.11.2026:** Gesamtread vom 22.11. und enger P02-Read vom 24.11. ausgewertet; tatsächliches v1.5.54 und gespeichertes P02-`BELOW_ENTRY` belegt. [Eine weitere tatsächlich offene Position versorgen](#naechster-schnitt) ist der einzige nächste Auftrag. Historische Kaufwährungen waren am 22.11. bei allen vier vorhanden; heutige Bindung der übrigen Positionen und weitere Produkt-/Quellen-/Kalender-/Fristlücken bleiben beim zuständigen Owner. **B04/B57/B58:** Produktionsregistry leer; eigener Original-BID und Statuszeit/-geltung samt realer Listinglieferung und Recovery sind nicht qualifiziert belegt. Ein neuer Feed braucht außerdem qualifizierten Adapter-/Zeitsemantikanschluss. **B05/B20:** V2 liefert nur getrennten begrenzten Fristreview; Exitlisting, letzter Handelstag, Folgekalender und individueller Produktschluss bleiben erforderliche Belege. **F207-2/B06:** historische Basiswerttrades zu beitragenden Käufen, ursprüngliche Ziele/Zieltreffer, vergleichbarer höchster Schutzboden, Bekanntgabe, Z1-Zählung, weitere Überwachung und Korrekturklärung bleiben offen. **F207-5:** vollständige gemeinsame Meldungsdarstellung, Zustands-/Versions-/Betriebsabnahme gesondert; Teilpfade ersetzen Gesamtumfang nicht. B07 separat, B08 ausgeschlossen. V1/V2 bleiben ausdrücklich freigegebene Alternativen mit eigener begrenzter Aussage, keine Lockerung der strengen Regeln. [Versorgungsnachweis vom 20.11.2026](../reviews/DEPOT_DATA_SUPPLY_2026-11-20.md) bindet sämtliche Datenanforderungen und Beschaffungsszenarien; keine neue Providerfreigabe oder Produktivänderung. Die weitere [Restabnahme](#monitoring-restabnahme) erhält die Abschlussgrenzen für diese Teilumfänge. |
 | Umfangsentscheidung | Bestehende unnummerierte Fähigkeit behalten; keine FT-Nummer erfinden. Frühere reine Underlying-EOD-Aussage nicht auf sämtliche spätere Regeln verallgemeinern. |
 
 
@@ -2683,16 +2735,16 @@ ist noch kein Veröffentlichungs- oder PC-Installationsbeleg behauptet.
 | Nachweisfeld | Einordnung |
 |---|---|
 | Zuordnung | M11: Betrieb; Ziel A. Bereich/Querschnitt: Querschnitt: technische Qualität/Betrieb. Bestehender Bezug: bestehende Betriebs-/Releaseverantwortung. Lieferziel: A. |
-| Arbeitsstatus | Observed — Installation, Schema, gesunde Dienste und regulärer V2-Zyklus auf v1.5.52 am 22.11.2026; Business Review — reale geeignete Regelabdeckung und vollständige Originalupgrade-/Importabnahme. |
-| Abgeschlossener Teilumfang | Vollständiger privater Readback vom 22.11.2026: c7db441…/v1.5.52, Schema0060, vier gesunde Dienste, 30/30 GETs und vollständiges Vierer-Inventar. V2-Ausführung mit 4/4 Datenproblemen in beiden Prüfpfaden belegt. Die frühere fehlende PC-Installationsbestätigung ist geschlossen. |
+| Arbeitsstatus | Observed — tatsächliches v1.5.54, Schema, gesunde Dienste und enger P02-Verbraucherread am 24.11.; letzte Gesamtinventur/Zyklusdiagnose am 22.11. auf v1.5.52; Business Review — weitere Regelabdeckung und vollständige Originalupgrade-/Importabnahme. |
+| Abgeschlossener Teilumfang | Vollständiger privater Readback vom 22.11.2026: c7db441…/v1.5.52, Schema0060, vier gesunde Dienste, 30/30 GETs und vollständiges Vierer-Inventar. V2-Ausführung mit 4/4 Datenproblemen in beiden Prüfpfaden belegt. Die frühere fehlende PC-Installationsbestätigung ist geschlossen. Am 24.11. ist v1.5.54/9a5e59d… separat verifiziert; der enge P02-Collector liefert historischen Gap und aktuellen gespeicherten V2-Entscheid mit Bid. Kein erneuter P02-Export erforderlich. |
 | Soll / Nicht-Soll | **Soll:** JMBbot mit tatsächlich installierter Version/Commit, Schema, Compose-Provenienz, Daten-/Monitoring-/Zustellzuständen und Nachweiszeitpunkt identifizieren. **Nicht-Soll:** Keine Diagnoseanleitung als erfolgreichen Lauf ausgeben; kein Monitoring-Einmallauf, Deployment oder Nachricht. |
-| Befundklasse / Lückenart | Installation und datierter Verbraucherbefund beobachtet; konkrete fachliche Datenlücken und einzelne Original-/Journalbelege offen. **Art der Restarbeit:** Datenversorgung und eng gebundene passive Ergänzung, kein erneuter pauschaler Betriebsnachweis. |
+| Befundklasse / Lückenart | Installation und datierte Verbraucherbefunde beobachtet; P02-Journalergänzung abgeschlossen. **Art der Restarbeit:** weitere Datenversorgung und gezielte Quellen-/Produktbindung, keine Wiederholung des pauschalen Betriebsnachweises. |
 | Implementierung / Consumer | Bestehender Launcher und [activate-indicative-monitoring.py](../../scripts/activate-indicative-monitoring.py) (prepare/apply) liefern zentralen kontrollierten Übergang. Passiver Runtime-Status und die beiden READ ONLY-Statusreader sind vorhanden; Diagnoseanleitung ist kein eigener Lauf. |
 | Test / Commit | [tests/unit/backend/test_linux_update_recovery.py](../../tests/unit/backend/test_linux_update_recovery.py); [tests/unit/backend/test_indicative_monitoring_activation.py](../../tests/unit/backend/test_indicative_monitoring_activation.py); [tests/unit/backend/features/position_monitoring/test_indicative_entry_read_migration.py](../../tests/unit/backend/features/position_monitoring/test_indicative_entry_read_migration.py); [tests/integration/backend/database/test_product_deadline_review_postgres.py](../../tests/integration/backend/database/test_product_deadline_review_postgres.py) Aktuelle Ausführung/Commitbindung: [Main-CI im Nachweisregister](#nachweisregister); kein neuer lokaler Anwendungstest. |
 | Fachliche Abnahme | Historisch freigegebener PC-Übergang ist laut Nutzerbeleg ausgeführt. Fachliche Depotabdeckung nicht abgenommen. |
 | Software-Auslieferung | Im geprüften Main und veröffentlichten Tag v1.5.52 enthalten; konkrete Softwareauslieferung, keine dadurch erteilte Gesamtfachabnahme. |
-| Betriebsnachweis | PR [#367](https://github.com/burckhju/trading-workspace/pull/367), Nutzerbeleg 19.11.2026: v1.5.51/254f0bbd… installiert, vier Dienste healthy, Readiness 200/ready, Schema 20261118_0060. Audit 18:13:12 MEZ: V2-Zyklus 18:06:42–18:07:17 MEZ, 35,307 s, running=true, last_error=null; Review und Deadline je 6 bewertet/6 Datenprobleme/0 technische Positionsfehler. Kein eigener PC-Zugriff dieser Prüfung. Historische Ursache-/Liefernachweise aus [#368](https://github.com/burckhju/trading-workspace/pull/368) bleiben erhalten. Neuer [PC-Readback vom 22.11.2026](../reviews/DEPOT_DATA_READBACK_2026-11-22.md): v1.5.52/c7db441…, Schema0060, vier offene Positionen, regulärer V2-Zyklus mit 4/4 Einstands- und 4/4 Fristdatenproblemen bei jeweils null technischen Positionsfehlern. Getrennte Produktende-/Zahlungsrollen beobachtet; exakter Parserhead/Originalupgrade und konkreter Kalenderimport dadurch nicht vollständig nachgewiesen. Frühere Sechser-/Viererbefunde werden nicht über Kennungen hinweg gleichgesetzt. |
-| Restarbeit / nächste Abhängigkeit | Der vollständige Collector wurde erfolgreich ausgeführt und ausgewertet; kein erneuter allgemeiner Export oder Update nötig. **Einzige nächste Abhängigkeit:** [gezielter bestehender P02-Journal-/Assessmentread](#naechster-schnitt), da dessen konkreter Gapgrund in den bisherigen GETs nicht ausgegeben wird. Dafür genügt der bestehende lokale Lesezugang; kein neuer Providervertrag. Rohdaten privat erhalten; Produktivänderung und fachliche Abnahme bleiben eigene Schritte. |
+| Betriebsnachweis | PR [#367](https://github.com/burckhju/trading-workspace/pull/367), Nutzerbeleg 19.11.2026: v1.5.51/254f0bbd… installiert, vier Dienste healthy, Readiness 200/ready, Schema 20261118_0060. Audit 18:13:12 MEZ: V2-Zyklus 18:06:42–18:07:17 MEZ, 35,307 s, running=true, last_error=null; Review und Deadline je 6 bewertet/6 Datenprobleme/0 technische Positionsfehler. Kein eigener PC-Zugriff dieser Prüfung. Historische Ursache-/Liefernachweise aus [#368](https://github.com/burckhju/trading-workspace/pull/368) bleiben erhalten. Neuer [PC-Readback vom 22.11.2026](../reviews/DEPOT_DATA_READBACK_2026-11-22.md): v1.5.52/c7db441…, Schema0060, vier offene Positionen, regulärer V2-Zyklus mit 4/4 Einstands- und 4/4 Fristdatenproblemen bei jeweils null technischen Positionsfehlern. Getrennte Produktende-/Zahlungsrollen beobachtet; exakter Parserhead/Originalupgrade und konkreter Kalenderimport dadurch nicht vollständig nachgewiesen. Frühere Sechser-/Viererbefunde werden nicht über Kennungen hinweg gleichgesetzt. Späterer [P02-Read vom 24.11.2026](../reviews/P02_SOURCE_GAP_READBACK_2026-11-24.md): tatsächliches v1.5.54/9a5e59d…, Schema0060 und vier gesunde Dienste; historischer Timeout konkret, jüngeres `BELOW_ENTRY` mit Bid um 18:21:41 Uhr MEZ. Kein neuer Gesamtzyklus-/Inventar-/Fristnachweis. |
+| Restarbeit / nächste Abhängigkeit | Vollständiger Collector und enge P02-Ergänzung sind erfolgreich ausgeführt und ausgewertet. **Einzige nächste Abhängigkeit:** [eine weitere offene Position für V2 versorgen](#naechster-schnitt); dafür zuerst die fehlenden aktuellen Coverage-/Kandidatenfakten archivgebunden lesen. Der vorhandene PC-Lesezugang genügt; Rohdaten bleiben privat. Kein App-Update oder erneuter P02-Read nötig. Neue Provider-/Kosten-/Produktiventscheidungen werden nur bei einem konkreten belegten Bedarf vorbereitet. |
 | Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
 
 </details>
@@ -2702,7 +2754,124 @@ ist noch kein Veröffentlichungs- oder PC-Installationsbeleg behauptet.
 
 
 <a id="naechster-schnitt"></a>
-## Einziger nächster Arbeitsauftrag — P02-Versorgungsunterbrechung auflösen
+## Einziger nächster Arbeitsauftrag — eine weitere offene Position für V2 versorgen
+
+**Ziel und erwartete Verbesserung:** Für eine weitere tatsächlich offene
+Position eine passende indikative Bidversorgung bis zum V2-Verbraucher
+herstellen oder den genau verbleibenden Daten-/Zugangsblocker eindeutig
+belegen. Ausgangskandidaten sind die am 22.11. ungebundenen **P01/P03/P04**;
+diese Archivlabels werden nicht auf die heutige Listenreihenfolge übertragen.
+Das Ziel ist eine zusätzliche beurteilbare Position, keine zugesicherte
+„2/4“-Quote bei unbekanntem aktuellem Gesamtbestand.
+
+**Betroffene Daten und Regeln:** aktuelle offene Position und ihre
+Ausführungs-/Restmengenbasis; exakte Produkt-/Listing-/Währungsidentität;
+gespeicherte Quellenauswahl, Kandidaten, Konfiguration und Ausschlussgründe;
+Bid samt Originalzeit oder ausdrücklich unbekannter Originalzeit,
+Empfangszeit und zulässigem Quellenmodus; vergleichbare Produkteinheit,
+richtiger Basiswert und benötigte Sitzungen. Verbraucher ist die
+freigegebene indikative Einstandsprüfung V2. Strenge B04/B57/B58-,
+Produktfrist- und B06-Voraussetzungen bleiben getrennt offen.
+
+**Vorhandene Komponenten und konkrete Änderungen in diesem einen Schnitt:**
+
+1. Die alte Identität gegen die heutige offene Inventur binden. Dazu die
+   bestehenden passiven GETs `/api/v1/market-data/positions/quote-coverage`
+   und `/api/v1/market-data/warrants/quote-coverage` verwenden. Der zweite
+   liefert beim vorhandenen `QuoteCoverageService` bestehende Routen,
+   Mappingzustand, Quotes und aktuelle Konfiguration. Discoverygründe
+   stammen nur aus aktuellen Frankfurt-/Vontobel-Mappingjobs, nicht aus
+   vollständiger persistierter Discoveryhistorie. Beide GETs enthalten
+   nur offene Positionen/Produkte; fehlt ein Archivkandidat, seinen
+   gespeicherten Trade-/Positionzustand gezielt auf `closed_at`/
+   `cancelled_at` lesen oder „nicht mehr eindeutig zuordenbar“ ausweisen.
+2. Da hier kein PC-Direktzugang besteht, denselben eigenständigen
+   [Collector](../../scripts/collect-depot-data-supply.py) um eine eng
+   archivgebundene Sammlung dieser fehlenden Coverage-Fakten ergänzen.
+   Sie liest die vorhandenen Ownerprojektionen, aktuelle gespeicherte
+   V2-/Produktbereitschaft und gezielt
+   `PositionQuoteSourceSelectionModel.evidence`: die persistierten
+   `verified_candidates`/`allowed_candidates`/`eligible_candidates`
+   fehlen in beiden GET-DTOs. Dafür einen reinen, gebundenen SELECT nutzen;
+   leere Runtimegründe nicht als früheren Discoveryfehler behandeln.
+   Kein neuer API-Endpoint, keine Wiederholung
+   der gesamten alten Diagnose. **Dieser Ergänzungsmodus ist noch nicht
+   implementiert.** Der vorhandene `--source-gap-from`-Modus setzt eine
+   bestätigte Route voraus und ist für die ungebundenen Kandidaten ungeeignet.
+   Passiver DB-Fallback nur ausdrücklich `READ ONLY`, ohne Sperren;
+   `PositionQuoteSourceSelectionRepository.active_for_position()` verwendet
+   `FOR UPDATE` und darf dafür nicht aufgerufen werden.
+3. Aus dem gebundenen Bestand genau eine weiter offene Position mit
+   konkret schließbarer Lücke wählen. Beim bestehenden Market-Data-Owner
+   `QuoteCoverageService`, Discovery, Mappingadministration,
+   Providereligibilität und `PositionQuoteSourceSelector` verwenden;
+   beim Product-Owner `ProductReviewEvidenceReader`/`ProductReviewReadiness`
+   für belegte Identität und Einheit. Nur die tatsächlich nachgewiesene
+   fehlende Zuordnung, vorhandene Konfiguration oder einmalige Original-
+   ergänzung korrigieren. Ein vorhandener ausgewählter Pfad wird nicht
+   still gewechselt. Reguläre Refresh-/Pacing-/Backoffwege weiterverwenden.
+4. Nach der regulären Verarbeitung die gespeicherte Quote und das
+   tatsächliche V2-Assessment derselben Position nachlesen. Ein vorliegender
+   Preis ohne Verbraucherwirkung reicht nicht. Wenn Rechte, Quelldaten,
+   Produktidentität oder eine fachliche Festlegung blockieren, die exakt
+   fehlende Information und die vorbereitete Bezugs-/Entscheidungsoption
+   dokumentieren, statt einen zusätzlichen technischen Umbau zu vermuten.
+
+**Benötigte Zugänge oder Entscheidungen:** Für den einmaligen engen
+Export genügt der vorhandene lokale Backend-/DB-Lesezugang; private
+Bindungen bleiben im Paket. Vorhandene Quellenfreigaben gelten in ihrem
+belegten Umfang. Ein neuer Anbieterzugang, kostenpflichtige Beschaffung,
+unklare Identitätskorrektur oder zusätzliche Produktiventscheidung wird
+erst mit konkreter Quelle, betroffener Position, Feldabdeckung und Kosten
+zur Entscheidung vorbereitet. Für den bereits ausgewerteten P02-Befund
+ist kein neuer Export, App-Update oder Ersatzprovider erforderlich.
+
+**Überprüfbare Abnahmekriterien:**
+
+- Die Archivkandidaten sind als heute offen/geschlossen/storniert/anders
+  gebunden beziehungsweise ausdrücklich nicht mehr eindeutig zuordenbar
+  eindeutig aufgelöst; jede weiter untersuchte Route besitzt konkrete
+  gespeicherte Kandidaten- und Ausschlussgründe. Ein fehlender Zugang wird
+  nicht als fehlender Kurs ausgegeben.
+- Für die ausgewählte Position ist die Kette Quelle → Abruf → Mapping →
+  Speicherung → Qualitätsprüfung → V2-Entscheid durch Zeit-/Versionsbezüge
+  nachvollziehbar. Produkt, Listing, Währung und Preiseinheit passen.
+- Entweder liegt ein tatsächlich auswertbarer V2-Entscheid vor, mit
+  positivem Bid und erfülltem bestehenden Quellenvertrag — bei der
+  zugelassenen zeitunbekannten Emittentenindikation Empfangsalter
+  **≤300 s** —, oder jedes noch sperrende Pflichtfeld samt konkretem
+  Ausschluss-/Zugangsgrund ist belegt. Das Ergebnis verbessert die
+  Verbraucherabdeckung oder die zuvor unbekannte Ursachenlage.
+- Originalkurszeit und Empfang bleiben getrennt. Gleiche Portalwerte,
+  ein erreichbarer Endpoint, `monitoring_usable`, ein laufender Runner
+  oder ein erfolgreicher HTTP-Abruf ersetzen keine Regelqualifikation.
+  B58 bleibt separat beurteilt; die Gesamtquote wird nur mit passender
+  aktueller Inventur ausgewiesen.
+- Der öffentliche Nachweis enthält nur technische/pseudonymisierte
+  Befunde; private Depotwerte, Produktkennungen und Zugangsdaten bleiben
+  geschützt. Einmalige Ergänzung und verbleibender laufender Pflegeaufwand
+  werden ausdrücklich unterschieden.
+
+**Arbeitsstatus:** Analysis — der neue P02-Nachweis ist abgeschlossen,
+die weitere Position noch nicht aktuell gelesen. Vorhandene Quellen-/
+Produkt-/Monitoringowner bleiben zuständig; kein neuer Provider- oder
+Regelumfang wird durch diesen Auftrag freigegeben.
+
+<details>
+<summary>Abgeschlossener enger P02-Auftrag vom 22.–24.11.2026</summary>
+
+<a id="p02-auftrag-20261122"></a>
+### Historischer Auftrag — P02-Versorgungsunterbrechung auflösen
+
+**Abschlussstand 24.11.:** Gebundener Journal-/Assessmentread liegt vor;
+`JPMORGAN_SNAPSHOT_TIMEOUT` und der davon zu trennende ältere fehlende Bid
+sind konkret dokumentiert. Ein jüngerer gespeicherter V2-Entscheid mit Bid
+ist auf v1.5.54 beobachtet. Der Resolver-/Diagnosefix ist im offenen PR
+implementiert und auf 41a0cf80… durch die vier regulären CI-Läufe qualifiziert,
+aber nicht auf dem PC installiert. Die ursprüngliche Rohpreisleere und die
+unterliegende Netzwerk-/Streamursache bleiben aus dem Paket nicht weiter
+auflösbar; daraus folgt kein belegter zusätzlicher Adapterfix. Die folgende
+Auftragsfassung bewahrt den damaligen Stand, keine erneute Exportaufforderung.
 
 **Ziel und erwartete Verbesserung:** Die tatsächliche Ursache hinter
 `REVIEW_BID_MISSING` und `REVIEW_PRICE_SUPPLY_INTERRUPTED` für die einzige
@@ -2791,6 +2960,8 @@ Archiv ausführen und sein privates Ergebnis auswerten. Der konkrete
 Journalgrund, eine daraus begründete Quellenkorrektur und die tatsächliche
 Verbraucherwirkung sind weiterhin nicht beobachtet. Keine zusätzliche
 Regel- oder Providerfreigabe aus dem Codefortschritt ableiten.
+
+</details>
 
 <details>
 <summary>Erledigter Gesamtreadback: damaliger Auftrag und Abnahmekriterien</summary>

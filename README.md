@@ -10,7 +10,7 @@ Trading Workspace unterstützt einen benutzergesteuerten Tradingprozess: Referen
 
 Die versionierte Software ist in [VERSION](VERSION) festgehalten. Die [Produkttermin-Auswertung v1.5.52](docs/releases/V1.5.52-PRODUCT-DATE-SEMANTICS.md) trennt belegtes Produktende und Zahlungstermin, korrigiert daraus entstandene falsche Widersprüche und wertet vorhandene Originalbelege automatisch neu aus. Ein kontrollierter privater Originalimport ergänzt den gesperrten Stuttgarter Kalenderabruf. Die [Build-Reparatur aus v1.5.51](docs/releases/V1.5.51-RELIABLE-BACKEND-BUILD.md) und der fachliche [V2-Umfang aus v1.5.50](docs/releases/V1.5.50-INDICATIVE-V2-AND-PRODUCT-DEADLINES.md) bleiben die Grundlage. Vorhandene Positionen und wirtschaftliche Belege werden weiterverwendet; echte Datenwidersprüche bleiben sichtbar. Die reale B58-Originalstatusversorgung ist weiterhin unbelegt. Ein Softwaretag bestätigt weder die Installation auf dem Nutzer-PC noch vollständige Hebeltrader-Überwachung.
 
-Der [private PC-Readback vom 22.11.2026](docs/reviews/DEPOT_DATA_READBACK_2026-11-22.md) belegt jetzt **v1.5.52 auf `c7db441…`**, Schema `20261118_0060`, vier gesunde laufende Dienste und einen regulären V2-Zyklus für vier offene Positionen. Beide Prüfpfade melden weiterhin vier Datenprobleme bei null technischen Positionsfehlern. Getrennte Produktende-/Zahlungsrollen sind am Verbraucher sichtbar; geeignete Kurs-/Produkt-/Fristversorgung bleibt offen. Die historischen Befunde aus [#367](https://github.com/burckhju/trading-workspace/pull/367) und [#368](https://github.com/burckhju/trading-workspace/pull/368) bleiben getrennte Zeit-/Bestandsschnitte. Der [einzige nächste Auftrag](docs/planning/PRODUCT_BACKLOG.md#naechster-schnitt) betrifft die konkrete Versorgungsunterbrechung der vorhandenen bestätigten JPMorgan-Route.
+Der [enge P02-Readback vom 24.11.2026](docs/reviews/P02_SOURCE_GAP_READBACK_2026-11-24.md) belegt **v1.5.54 auf `9a5e59d…`**, Schema `20261118_0060` und vier gesunde laufende Dienste. Für dieselbe gebundene JPMorgan-Route ist um **18:21:41 Uhr MEZ** eine auswertbare V2-Bewertung gespeichert: `BELOW_ENTRY`, mit vorhandenem Bid und 10,456 Sekunden Empfangsalter. Die frühere Unterbrechung ist als `JPMORGAN_SNAPSHOT_TIMEOUT` konkretisiert; der damalige Quote war schon vor dessen Erfassung bidlos. Die aktuelle Originalstatuslücke ist keine neue V2-Preisunterbrechung. Original-Bidzeit und qualifizierter Instrumentstatus fehlen weiterhin für B58. Der [Gesamtreadback vom 22.11.2026](docs/reviews/DEPOT_DATA_READBACK_2026-11-22.md) bleibt die letzte vollständige Vierer-Inventur und Zyklusdiagnose; der neue Einzelread liefert keine heutige Gesamtquote. Der [einzige nächste Auftrag](docs/planning/PRODUCT_BACKLOG.md#naechster-schnitt) richtet sich auf die Versorgung einer weiteren tatsächlich offenen Position.
 
 **Aktueller Arbeitsstatus und Abnahmematrix:** [Product Backlog](docs/planning/PRODUCT_BACKLOG.md). Es ist die einzige maßgebliche Aufgabenstatusquelle. Hier steht bewusst keine zweite vollständige Feature-Statusliste.
 
@@ -22,11 +22,11 @@ liest vorhandene Positionen und gespeicherte Prüfgründe, ohne einen
 Kursabruf oder Regellauf auszulösen. Der [einzelne Diagnosecollector](scripts/collect-depot-data-supply.py)
 kann außerhalb des installierten Checkouts laufen und liefert ein privates
 Archiv einschließlich tatsächlicher Installations- und DB-Schemabelege.
-Dieser vollständige Readback liegt inzwischen vor. Die noch fehlende
-[enge passive Ergänzung](docs/reviews/DEPOT_DATA_READBACK_2026-11-22.md#engste-noch-fehlende-passive-ergänzung)
-betrifft ausschließlich den im bisherigen Antwortformat nicht ausgegebenen
-Journal-/Assessmentgrund der bestätigten Route; ein erneuter unveränderter
-Gesamtcollector würde dieses Detail nicht liefern.
+Der vollständige Readback und die [enge passive P02-Ergänzung vom
+24.11.2026](docs/reviews/P02_SOURCE_GAP_READBACK_2026-11-24.md) liegen vor.
+Archivierte Bewertungsinputs und heutiger Journalbestand sind getrennt
+ausgewertet. Ein erneuter P02-Export ist für diese Ursachenklärung nicht
+erforderlich; die übrigen Positionen wurden mit dem neuen Paket nicht gelesen.
 
 | Orientierung | Maßgebliche Quelle |
 |---|---|
