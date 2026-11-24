@@ -12,7 +12,7 @@ from alembic.script import ScriptDirectory
 ROOT = Path(__file__).resolve().parents[3]
 RUN = "00000000-0000-4000-8000-000000000123"
 WORKSPACE = "00000000-0000-4000-8000-000000000001"
-CURRENT = "20261118_0060"
+CURRENT = "20261124_0061"
 
 
 @pytest.fixture(params=["realized_gross", "journal", "candidate_governance"])
@@ -91,6 +91,7 @@ def test_owner_guard_pin_is_exactly_the_repository_head(guard):
     [
         [CURRENT],
         [],
+        ["20261118_0060"],
         ["20261109_0049"],
         ["unexpected_head"],
         [CURRENT, "20261109_0049"],

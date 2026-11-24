@@ -159,12 +159,14 @@ Produktionsregister. Die ausführbaren Nachweise liegen bei den jeweiligen
 Codekomponenten. Lokale Läufe und reguläre CI bleiben von einer PC-Installation
 und einer tatsächlichen P01-Verbraucherabnahme getrennt.
 
-**Tatsächlicher lokaler Abschlusslauf am 24.11.2026:** 178 Tests bestanden,
+**Tatsächlicher lokaler Abschlusslauf am 24.11.2026:** 216 Tests bestanden,
 vier PostgreSQL-Fälle ausdrücklich übersprungen, weil hier keine freigegebene
 Testdatenbank-URL vorliegt. Der Lauf umfasst die drei neuen Product-Unitdateien,
 den neuen CLI-Test, den bestehenden KID-Reader sowie
 `test_indicative_entry.py`, `test_indicative_entry_v2.py` und
-`test_indicative_entry_inputs.py`. Die vier Fälle in
+`test_indicative_entry_inputs.py`. Zusätzlich sind 11 bestehende
+Evidenz-/Zielpersistenztests und 27 End-to-End-Schemaguardtests geprüft.
+Die vier Fälle in
 [test_listing_unit_evidence_postgres.py](../../tests/integration/backend/database/test_listing_unit_evidence_postgres.py)
 müssen in der regulären PostgreSQL-CI tatsächlich laufen: sequenzieller und
 konkurrierender Import, Revisions-/KID-Zeitbindung und vollständige gespeicherte
@@ -182,6 +184,15 @@ vollständige Historie nicht auf. Sechs Kombinationen mit und ohne dokumentierte
 Historie sowie ein echter KID-Währungskonflikt sind gezielt abgesichert.
 Die bestehende Alembic-Metadatenregistrierung ist
 erhalten und nur um die neue Tabelle ergänzt.
+
+Die expliziten Head-Erwartungen der vorhandenen Evidenz-/Zielpersistenztests,
+drei End-to-End-Datenbankguards und zwei Report-Specs wurden auf 0061 fortgeführt.
+Vorher scheiterten exakt die drei Unitprüfungen der End-to-End-Guards gegen den
+tatsächlichen Migrationshead; danach bestehen alle 27 einschließlich des
+zusätzlich ausdrücklich abgewiesenen Vorgängers 0060. Tabellenfingerprints und
+Workspace-Isolation erfassen die neue Tabelle dynamisch; keine Ausnahme oder
+Schutzlockerung wurde eingeführt. Archivierte Collectorbeispiele behalten ihren
+tatsächlich beobachteten Schema0060-Stand.
 
 1.421 relative Dokumentverweise und 577 Anker wurden ohne Fehler geprüft.
 Der öffentliche Diff wurde gegen 669 private Vergleichswerte einschließlich
