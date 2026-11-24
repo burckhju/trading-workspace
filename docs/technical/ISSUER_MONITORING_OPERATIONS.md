@@ -454,6 +454,15 @@ dokumentierte Wiederherstellungsanleitung des verwendeten Modus;
 der [aktuelle Auftrag](../planning/PRODUCT_BACKLOG.md#naechster-schnitt)
 betrifft jetzt die konkret belegte P01-Versorgung.
 
+Die [anschließende P01-Originalprüfung](../reviews/DEPOT_SOURCE_COVERAGE_READBACK_2026-11-24.md#p01-originaleinheit)
+ist nach ausdrücklicher Freigabe abgeschlossen: Das KID stimmt bytegleich
+mit der PC-Revision überein und enthält keine ausdrückliche Preiseinheit.
+`unit=null` ist hier kein Parserfehler; ein weiterer KID-Download oder Reparse
+würde das fehlende Feld nicht ergänzen. Der vorbereitete zusätzliche aktuelle
+gettex-Listing-Einheitenbeleg benötigt einen additiven Product-Anschluss und
+separates Originalpaket. Der vorhandene historische Maßstabsimport und der
+XSTU-Fristimport nehmen diesen neuen Belegtyp nicht bereits auf.
+
 Der Modus `--source-coverage-from` liest die heutigen gespeicherten Fakten
 zu den **im ursprünglichen vollständigen Archiv noch nicht ausgewählten**
 Positionen. Im gelieferten Referenzbestand sind dies P01/P03/P04; P02

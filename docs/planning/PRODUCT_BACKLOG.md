@@ -4,14 +4,14 @@
 
 | Feld | Wert |
 |---|---|
-| Revision | 24.11.2026: P02- und Quellenkandidatenread ausgewertet; aktuelles v1.5.54 und fehlende Routen/Einheiten belegt. Offizielle gettex-Datei bestätigt einen P01-Datensatz; genau ein konkretisierter P01-Versorgungsauftrag. Die datierten Nachweise vom 19.–23.11., UI-Fachstruktur A und Liefernotizen bleiben erhalten. |
+| Revision | 24.11.2026: P02- und Quellenkandidatenread ausgewertet; aktuelles v1.5.54 und fehlende Routen/Einheiten belegt. P01-KID nach Freigabe bytegleich geprüft: Einheit fehlt im Original, kein Parserfehler. Gettex-Datensatz und ergänzende offizielle Notierungskonvention konkretisieren den einen P01-Versorgungsauftrag. Die datierten Nachweise vom 19.–23.11., UI-Fachstruktur A und Liefernotizen bleiben erhalten. |
 | Erstprüfung | 19.11.2026, 19:31:38 Uhr MEZ (Europe/Berlin), auf `254f0bbd52ab42e0120d381e915dc96c1118796c` / `v1.5.51` |
 | Fortschreibung | 20.11.2026, Beginn 13:46:04 Uhr MEZ; Main-/Release-Delta, tatsächliche CI, PR- und Betriebsnachweise erneut geprüft |
 | Geprüfter Produktstand | Fachlicher Daten-/Readervertrag auf `c7db441de36297a98d47cdf28c64b4e5d9994692` / v1.5.52; Backendreader und bestehende Betriebshelfer bis zum unten genannten Main unverändert. Die neue Oberfläche bleibt an ihre eigenen #372-Nachweise gebunden. |
 | Aktueller Main | `9a5e59dac3bb219cbc40641e62e75871eb2ed131`, Mergecommit #373 vom 22.11.2026, 21:35:28 Uhr MEZ, `VERSION=1.5.54`. Das Delta seit #372/febeb922… ändert ausschließlich Versions-/Liefermetadaten und Dokumentation; Backendpfade unverändert. Main ist kein Nachweis einer PC-Installation. |
 | Tatsächlicher PC | v1.5.54 auf `9a5e59dac3bb219cbc40641e62e75871eb2ed131`, zuletzt im Quellenkandidatenpaket vom 24.11.2026, 20:33 Uhr MEZ, vor/nach verifiziert; letzte vollständige Inventur weiterhin vom 22.11. |
 | Funktion | Einzige maßgebliche Quelle des aktuellen Aufgabenstatus; bestehende PB-/FT-/M-Kennungen und Owner bleiben erhalten |
-| Prüfgrenze | Vollständiger Checkout, Quellprüfung, Gesamtreadback vom 22.11., P02- und Quellenkandidatenreads vom 24.11. sowie isolierte gettex-Originaldateiprobe; kein interaktiver PC-/DB-Zugang, keine neue Gesamtinventur oder menschliche Gesamtfachabnahme |
+| Prüfgrenze | Vollständiger Checkout, Quellprüfung, Gesamtreadback vom 22.11., P02- und Quellenkandidatenreads vom 24.11., isolierte gettex-Originaldateiprobe und freigegebene P01-KID-Originalprüfung; kein interaktiver PC-/DB-Zugang, keine neue Gesamtinventur oder menschliche Gesamtfachabnahme |
 
 <a id="depotquellen-20261124"></a>
 ## Fortschreibung — Quellenkandidaten und konkreter P01-Datensatz, 24.11.2026
@@ -36,12 +36,18 @@ und noch nicht im PC-Datenbestand gespeichert. Der Dateiumfang von rund
 
 **Genau ein nächster Auftrag:** [P01 über die vorhandenen Quellen- und
 Produktowner für V2 versorgen](#naechster-schnitt). Für diese Ursachenklärung
-ist kein erneuter Gesamt-, P02- oder Kandidatenexport erforderlich. Noch
-benötigt ist das produktgebundene Original zur Preiseinheit. Der individuelle
-BNP-Abruf wurde durch die automatische Freigabeprüfung wegen Übermittlung
-der privaten Produktkennung abgelehnt; der eng vorbereitete Lesezugang oder
-das bereits vorhandene Original genügt. Kein belegter Parserfehler wird
-vor dieser Originalprüfung unterstellt.
+ist kein erneuter Gesamt-, P02- oder Kandidatenexport erforderlich.
+
+**Originalfrage abgeschlossen, 21:07 Uhr MEZ:** Nach ausdrücklicher Freigabe
+wurde das offizielle P01-KID abgerufen und bytegleich zur PC-Revision
+verifiziert. Alle drei Seiten enthalten keine ausdrückliche Stückpreisnotiz;
+`unit=null` ist korrekt, kein Parserfix. Die
+[ergänzende Quellenprüfung](../reviews/DEPOT_SOURCE_COVERAGE_READBACK_2026-11-24.md#gettex-listingeinheit)
+belegt eine explizite gettex-Quote-Konvention auch für den Freiverkehr.
+Zusammen mit Produktklasse und exaktem MUND/EUR-Datensatz ist damit ein
+gesonderter aktueller Listing-Einheitenbeleg vorbereitet. Offen sind sein
+Originalbytepaket, der additive Product-Anschluss und die tatsächliche
+P01-Listing-/Mapping-/Verbraucherabnahme. Eine KID-Wiederholung ist unnötig.
 
 <a id="depotdiagnose-20261124"></a>
 ## Fortschreibung — P02-Ursache und gespeicherte V2-Teilabdeckung, 24.11.2026
@@ -528,12 +534,13 @@ Quellenkandidatenreads vom 24.11. liegen vor und sind ausgewertet. Heutige
 Bindungen, Auswahlkandidaten und Produktbelege der drei übrigen archivierten
 Positionen sind damit zugänglich. Interaktiver PC-/DB-Zugang, frühere
 P02-Rohpreisfelder und vollständige Zwischenbewertungen fehlen weiterhin.
-Für P01 fehlt hier die ausdrückliche Originalstelle zur Preiseinheit;
-der individuelle externe KID-Read benötigt nach automatischer Ablehnung
-eine ausdrückliche Freigabe oder das privat bereitgestellte gespeicherte
-Original. Der [nächste Auftrag](#naechster-schnitt) schließt den konkreten
-P01-Original-/Listing-/Mapping-/Verbraucherrest; kein erneuter unveränderter
-Gesamt-, P02- oder Kandidatenexport.
+Der ausdrücklich freigegebene P01-KID-Read ist abgeschlossen; das Original
+enthält die Preiseinheit nicht. Der zusätzliche offizielle gettex-Regeltext
+ist gelesen, sein direkter PDF-Download antwortete hier mit HTTP 403.
+Importierbare Regeloriginalbytes und der ergänzende Product-Anschluss sind
+deshalb noch vorzubereiten. Der [nächste Auftrag](#naechster-schnitt) schließt
+den konkreten P01-Listing-/Einheiten-/Mapping-/Verbraucherrest; kein erneuter
+unveränderter Gesamt-, P02- oder Kandidatenexport und keine erneute KID-Freigabe.
 
 <a id="betriebsnachweis"></a>
 ### Zeitliche Einordnung der Betriebsevidenz
@@ -550,6 +557,7 @@ Gesamt-, P02- oder Kandidatenexport.
 | 24.11.2026, enger Read 18:23:08–18:23:10 Uhr MEZ; gespeicherte P02-Bewertung 18:21:41 Uhr MEZ | [P02-Nachweis](../reviews/P02_SOURCE_GAP_READBACK_2026-11-24.md): tatsächliches v1.5.54/9a5e59d…, Schema0060, vier gesunde Dienste; archivierter `JPMORGAN_SNAPSHOT_TIMEOUT`; neuer Bid und `BELOW_ENTRY`, Empfangsalter 10,456 s | Enger Diagnoseauftrag erfüllt; Statusgap ohne neue V2-Preisunterbrechung. Originalzeit/-status weiter unqualifiziert. Keine aktuelle Gesamtinventur, Frist-, B06- oder Verlaufsabnahme. Kein Zusammenhang mit noch nicht installiertem PR-370-Fix behauptet. |
 | 24.11.2026, Quellenkandidatenread 20:33:55–20:33:58 Uhr MEZ | [Gebundener Readback](../reviews/DEPOT_SOURCE_COVERAGE_READBACK_2026-11-24.md): dieselbe v1.5.54-Installation, drei offene Archivkandidaten, keine Mappingrouten/Auswahlkandidaten; erfolgreiche KID-Beschaffung mit fehlenden Einheiten und zusätzlichem P04-Konflikt | Einmalige Diagnosefrage beantwortet; keine aktuelle Gesamtinventur und keine neue fachliche V2-Abdeckung. |
 | 24.11.2026, externe Gesamtdatei 20:40:50–20:41:25 Uhr MEZ; Offlineparser 20:43:22–20:43:35 Uhr | [Gettex-Probe](../reviews/DEPOT_SOURCE_COVERAGE_READBACK_2026-11-24.md#4-offizieller-gettex-dateidienst-neue-praktische-probe): vollständige Originaldatei/CRC; positiver P01-EUR/MUND-Bid, gemeinsame Quellenzeit 18:57:23.707737 Uhr | Historische konkrete Quellendeckung, noch kein PC-Listing/Mapping oder aktueller Verbraucherpreis; P03/P04 fehlen nur im untersuchten Fenster. |
+| 24.11.2026, P01-Original gespeichert 21:07:13 Uhr MEZ | [Freigegebene KID-Prüfung](../reviews/DEPOT_SOURCE_COVERAGE_READBACK_2026-11-24.md#p01-originaleinheit): HTTP 200, drei Seiten, bytegleich zur PC-Revision, Einheit fehlt im Original; offizielle gettex-Konvention als ergänzender Belegweg gelesen | Eindeutige Ursachenklärung; kein Parserfix, kein neuer PC-Entscheid. Zusätzlicher aktueller Listing-Einheitenbeleg ist noch nicht integriert. |
 
 <a id="pr-abgleich"></a>
 ### Aktuelle PRs gegenüber Main
@@ -2791,7 +2799,7 @@ ist noch kein Veröffentlichungs- oder PC-Installationsbeleg behauptet.
 | Fachliche Abnahme | Historisch freigegebener PC-Übergang ist laut Nutzerbeleg ausgeführt. Fachliche Depotabdeckung nicht abgenommen. |
 | Software-Auslieferung | Im geprüften Main und veröffentlichten Tag v1.5.52 enthalten; konkrete Softwareauslieferung, keine dadurch erteilte Gesamtfachabnahme. |
 | Betriebsnachweis | PR [#367](https://github.com/burckhju/trading-workspace/pull/367), Nutzerbeleg 19.11.2026: v1.5.51/254f0bbd… installiert, vier Dienste healthy, Readiness 200/ready, Schema 20261118_0060. Audit 18:13:12 MEZ: V2-Zyklus 18:06:42–18:07:17 MEZ, 35,307 s, running=true, last_error=null; Review und Deadline je 6 bewertet/6 Datenprobleme/0 technische Positionsfehler. Kein eigener PC-Zugriff dieser Prüfung. Historische Ursache-/Liefernachweise aus [#368](https://github.com/burckhju/trading-workspace/pull/368) bleiben erhalten. Neuer [PC-Readback vom 22.11.2026](../reviews/DEPOT_DATA_READBACK_2026-11-22.md): v1.5.52/c7db441…, Schema0060, vier offene Positionen, regulärer V2-Zyklus mit 4/4 Einstands- und 4/4 Fristdatenproblemen bei jeweils null technischen Positionsfehlern. Getrennte Produktende-/Zahlungsrollen beobachtet; exakter Parserhead/Originalupgrade und konkreter Kalenderimport dadurch nicht vollständig nachgewiesen. Frühere Sechser-/Viererbefunde werden nicht über Kennungen hinweg gleichgesetzt. Späterer [P02-Read vom 24.11.2026](../reviews/P02_SOURCE_GAP_READBACK_2026-11-24.md): tatsächliches v1.5.54/9a5e59d…, Schema0060 und vier gesunde Dienste; historischer Timeout konkret, jüngeres `BELOW_ENTRY` mit Bid um 18:21:41 Uhr MEZ. Kein neuer Gesamtzyklus-/Inventar-/Fristnachweis. |
-| Restarbeit / nächste Abhängigkeit | Gesamt-, P02- und Quellenkandidatenread sind erfolgreich ausgeführt und ausgewertet. **Einzige nächste Abhängigkeit:** [P01 für V2 versorgen](#naechster-schnitt). Ein passender historischer gettex-EUR/MUND-Bid ist isoliert belegt; Listing/Mapping, ausdrückliche Preiseinheit und frischer tatsächlicher PC-Verbraucherpreis fehlen. Kein erneuter unveränderter Diagnoseexport. Für die engste Originalprüfung ist der einmalige BNP-KID-Lesezugang nach automatischer Ablehnung zur ausdrücklichen Freigabe vorbereitet; alternativ genügt das schon gespeicherte Original. Quellen-/Kosten-/Produktiventscheidungen bleiben an konkrete Belege gebunden. |
+| Restarbeit / nächste Abhängigkeit | Gesamt-, P02- und Quellenkandidatenread sind erfolgreich ausgeführt und ausgewertet. **Einzige nächste Abhängigkeit:** [P01 für V2 versorgen](#naechster-schnitt). Ein passender historischer gettex-EUR/MUND-Bid ist isoliert belegt; Listing/Mapping, vom Verbraucher verwendbare Preiseinheit und frischer tatsächlicher PC-Verbraucherpreis fehlen. Kein erneuter unveränderter Diagnoseexport. Die freigegebene P01-KID-Prüfung ist abgeschlossen: Einheit fehlt im Original, kein Parserfix. Ergänzendes gettex-Regel-/Listingpaket und additiver Product-Anschluss sind konkret vorbereitet, noch nicht integriert. Quellen-/Kosten-/Produktiventscheidungen bleiben an konkrete Belege gebunden. |
 | Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
 
 </details>
@@ -2813,8 +2821,12 @@ Gesamtquote wird ohne passende Gesamtinventur nicht zugesichert.
 **Abgeschlossener Fortschritt:** P01/P03/P04 sind aktuell gelesen und
 zugeordnet. Fehlende Routen und Auswahlkandidaten sind belegt; KID-Beschaffung
 ist erfolgreich. P01/P03 haben einen nutzbaren V2-Referenzkalenderpfad, aber
-keine belegte Preiseinheit. P04 hat zusätzliche Identitäts-/Kalenderlücken.
-Die isolierte gettex-Dateiprobe enthält P01, P03/P04 nicht in diesem Fenster.
+keine vom Verbraucher verwendbare Preiseinheit. P04 hat zusätzliche
+Identitäts-/Kalenderlücken. Die isolierte gettex-Dateiprobe enthält P01,
+P03/P04 nicht in diesem Fenster. Das freigegebene P01-KID ist bytegleich zum
+PC-Original geprüft: Es enthält die Einheit tatsächlich nicht, deshalb kein
+Parserfix. Das aktuelle gettex-Regelwerk liefert einen geeigneten ergänzenden
+Belegweg für eine ausdrücklich listinggebundene aktuelle Einheit.
 [Belege und exakte Grenzen](../reviews/DEPOT_SOURCE_COVERAGE_READBACK_2026-11-24.md).
 Keine erneute unveränderte Sammlung gehört zum nächsten Schritt.
 
@@ -2827,14 +2839,22 @@ B04/B57/B58, Produktfristen und B06 bleiben getrennte Anforderungen.
 
 **Vorhandene Komponenten und konkrete Arbeit in diesem einen Schnitt:**
 
-1. P01-Original auf seine ausdrückliche Preis-/Stücknotierung prüfen.
-   Falls `extract_kid_text` eine belegte Formulierung übersieht, einen engen
-   Parserfix mit Originalregression und neuer Parserrevision vorbereiten;
-   der vorhandene `reparse_saved_original_kid`-Pfad übernimmt die gespeicherten
-   Originalbytes unverändert in eine neue Ownerrevision. Wenn das KID diese
-   Feldklasse nicht belegt, einen passenden originalen Listing-/Termsbeleg
-   für den Product-Owner qualifizieren. Keine Einheitsannahme aus Produkttyp,
-   Bezugsverhältnis, Währung oder Kostenbeispielen.
+1. Den [ergänzenden gettex-Listing-Einheitenbeleg](../reviews/DEPOT_SOURCE_COVERAGE_READBACK_2026-11-24.md#gettex-listingeinheit)
+   beim vorhandenen Product-Owner additiv anschließen. Regeloriginalbytes,
+   Fundstelle, dokumentierte zeitliche Geltung und Produktklassifikation
+   mit dem aus der vollständig geprüften Kursdatei gewonnenen Zielnachweis
+   verbinden. Originalquelle, Hash, Quellenereignis und tatsächliche
+   Produkt-/Terms-/Listing-/MIC-/Währungsbindung erhalten. Ein begrenztes
+   Belegpaket darf die 657-MB-Datei durch einen überprüfbaren Zielnachweis
+   referenzieren; ein bloß behaupteter Hash genügt nicht. Die
+   `product_review_documents`-Ablage benötigt einen additiven Belegtyp und
+   eine Migration; der passive Product-Reader sowie `ProductReviewEvidence`
+   benötigen getrennte KID-/Einheitenprovenienz. Der V2-Aufrufer übergibt die
+   bereits vorhandene `saved.route` zur exakten Listingprüfung. Den
+   bestehenden V2-Vertrag um diesen qualifizierten Quellenanschluss ergänzen,
+   ohne seine Schwellen oder historische Kontinuitätsannahme zu ändern.
+   Parser v2 und KID-Fakten bleiben unverändert. Keine erfundene historische
+   `UNCHANGED_ORIGINAL`-Periode und kein Umbau des strengen Maßstabsimports.
 2. Beim vorhandenen Product-Owner das konkrete MUND-Listing lesen
    (`GET /api/v1/warrants/{warrant_id}/listings`). Ein fehlendes Listing nur
    mit passendem Produkt-/MIC-/Währungsbeleg über `WarrantService.add_listing`
@@ -2854,24 +2874,28 @@ B04/B57/B58, Produktfristen und B06 bleiben getrennte Anforderungen.
    und Sitzungen. Eine erreichbare Datei oder ein laufender Runner allein
    erfüllt die Abnahme nicht.
 
-**Jetzt benötigter Zugang / konkrete Entscheidung:** Der einmalige lesende
-Abruf des offiziellen P01-KID von `kid.bnpparibas.com` ist vorbereitet.
-Dabei würde ausschließlich die Produktkennung übermittelt. Die automatische
-Freigabeprüfung hat diese Übermittlung wegen fehlender ausdrücklicher
-Offenlegungsfreigabe abgelehnt. Deshalb ist genau diese Zustimmung erforderlich;
-alternativ kann das bereits gespeicherte P01-KID privat bereitgestellt werden.
-Das ist keine neue Providerfreigabe, Bestellung oder produktive Änderung.
-Die vorhandene gettex-Konfiguration bleibt in ihrem belegten Nutzungsumfang;
-kein bezahlter Ersatzanbieter wird ohne konkrete Abdeckungs-/Kostenentscheidung
-beschafft. Ein neuer PC-Diagnoseexport ist für die bisherigen Ursachen unnötig.
+**Benötigter Zugang / konkrete Entscheidung:** Der P01-KID-Lesezugang ist
+freigegeben und genutzt. Für das ergänzende Regelpaket werden die tatsächlich
+verlinkten offiziellen Originaldateien mit überprüfbaren Bytes/Hashes benötigt;
+der Webtext ist gelesen, der direkte Börsenordnungs-Download wurde hier mit
+HTTP 403 abgewiesen. Einen geeigneten offiziellen Lesezugang oder einmaligen
+dokumentierten Originalimport verwenden; keine Zugangssperre umgehen. Vor
+produktiver Nutzung den konkreten ergänzenden Quellenvertrag, Originalpaket
+und die Product-/Mappingvorschau reviewbar vorlegen. Der aktuelle Nachweis ist
+keine neue produktive Regel- oder Provideraktivierung. Die vorhandene
+gettex-Konfiguration bleibt in ihrem belegten Nutzungsumfang; kein bezahlter
+Ersatzanbieter wird ohne konkrete Abdeckungs-/Kostenentscheidung beschafft.
+Ein neuer PC-Diagnoseexport ist für die bisherigen Ursachen unnötig.
 
 **Überprüfbare Abnahmekriterien:**
 
-- Product-Evidenz für P01 enthält eine aus dem gebundenen Original belegte
-  Einheit `CURRENCY_PER_WARRANT`, passende EUR-/Produkt-/Basiswertbindung
-  und `AVAILABLE`; oder die exakt fehlende Originalfeldklasse samt geprüftem
-  Beschaffungsweg ist eindeutig nachgewiesen. Ein Reparse erhält
-  ursprünglichen Abrufzeitpunkt, Hash und unveränderliche Revisionshistorie.
+- Product-Evidenz für P01 enthält eine aus den gebundenen Originalen belegte
+  Einheit `CURRENCY_PER_WARRANT`, passende EUR-/Produkt-/Basiswert-/Terms-
+  und Listingbindung sowie `AVAILABLE`. Ergänzende Einheitenrevision und
+  KID-Revision sind getrennt nachvollziehbar und gemeinsam fingerprintgebunden.
+  Die Qualität bleibt `CURRENT_UNIT_HISTORY_ASSUMED`; das KID bleibt bytegleich
+  und weiterhin ohne extrahierte Einheit. Fremdlisting, Währungs-/Termswechsel,
+  beschädigte Originale oder widersprüchliche Belege bleiben gesperrt.
 - Genau eine passende aktive P01-MUND-Route ist belegt, validiert und ausgewählt.
   Vorhandene widersprüchliche oder mehrdeutige Listings werden nicht geraten
   beziehungsweise automatisch überschrieben.
@@ -2891,11 +2915,13 @@ beschafft. Ein neuer PC-Diagnoseexport ist für die bisherigen Ursachen unnötig
 - Öffentliche Belege enthalten nur erforderliche technische Zusammenfassungen;
   Depotwerte, Kennungen, individuelle Produkt-URLs und Originaldaten bleiben privat.
 
-**Arbeitsstatus:** Observed — Quellenkandidatenread und konkrete historische
-P01-gettex-Quellendeckung; Analysis — Originaleinheit und produktive P01-
-Listing-/Mapping-/Verbraucherabnahme. Die reine Collectorfertigstellung ist
-abgeschlossen. Zuständige Owner bleiben Product, Market Data und Position
-Monitoring; kein neuer Regelumfang wird freigegeben.
+**Arbeitsstatus:** Observed — Quellenkandidatenread, konkrete historische
+P01-gettex-Quellendeckung und abgeschlossene P01-KID-Ursachenprüfung;
+Analysis — Entwurf des ergänzenden aktuellen Listing-Einheitenbelegs,
+Originalpaket und Product-Anschluss; verbleibend ist die produktive
+P01-Listing-/Mapping-/Verbraucherabnahme.
+Die reine Collectorfertigstellung ist abgeschlossen. Zuständige Owner bleiben
+Product, Market Data und Position Monitoring; kein neuer Regelumfang wird freigegeben.
 
 <details>
 <summary>Abgeschlossener enger P02-Auftrag vom 22.–24.11.2026</summary>

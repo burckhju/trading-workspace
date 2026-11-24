@@ -10,13 +10,15 @@ ausgegebene Mappingroute. Der neueste gespeicherte V2-Entscheid ist jeweils
 `UNAVAILABLE`. Zusätzlich fehlen belegte aktuelle Preiseinheiten; P04 hat
 einen Produkt-/Basiswertkonflikt und keine verwendbare V2-Referenzkalenderdeckung.
 
-Die KID-Beschaffung ist bei allen drei Positionen **erfolgreich**. Der aktuelle
-Blocker ist damit nicht schlicht ein fehlender Dokumentdownload. Ob die Einheit
-im Original fehlt oder der Parser ihre tatsächliche Formulierung nicht erkennt,
-ist aus Metadaten allein nicht entschieden. Für den bestehenden kostenlosen
-gettex-Dateipfad wurde zusätzlich eine offizielle Gesamtdatei vollständig
-beschafft, ohne private Produktkennungen nach außen zu übertragen; die
-isolierte Quellenprobe wird unten getrennt vom PC-Verbraucherbefund ausgewiesen.
+Die KID-Beschaffung ist bei allen drei Positionen **erfolgreich**. Die spätere
+[P01-Originalprüfung](#p01-originaleinheit) von **21:07 Uhr** klärt die bisher
+offene Ursache: Das bytegleiche KID enthält keine ausdrückliche Preiseinheit;
+`unit=null` ist dafür korrekt. Ein Parserfix wäre unbegründet. Für P03/P04
+wird dieser Einzelbefund nicht übernommen. Ein zusätzlicher aktueller
+Listing-Einheitenbeleg lässt sich aus dem offiziellen gettex-Regelwerk und
+der exakt gebundenen Originalquelle vorbereiten; sein Product-Anschluss
+fehlt noch. Die vollständige gettex-Dateiprobe bleibt von den gespeicherten
+PC-Verbraucherbefunden getrennt.
 
 Die letzte vollständige Inventur bleibt der
 [Gesamtread vom 22.11.](DEPOT_DATA_READBACK_2026-11-22.md). Der heutige enge
@@ -138,36 +140,105 @@ Basiswertkonflikts und eine tatsächlich geeignete Referenzkalenderdeckung.
 Welche Konfliktseite falsch ist, ist ohne Originalprüfung nicht entschieden;
 kein automatisches Überschreiben der Stammdaten.
 
-### Kleinste noch fehlende Originalinformation
+<a id="p01-originaleinheit"></a>
+### P01: Originalprüfung und eindeutige Ursache
 
-Benötigt ist für P01 eine ausdrücklich produktgebundene Notierungs-/Preiseinheit,
-etwa eine tatsächliche Originalangabe zur Stücknotierung oder zum Preis je
-Optionsschein. Währung, Produkttyp, Bezugsverhältnis, Auszahlungsformel und
-Anlage-/Kostenbeispiele ersetzen dieses Feld nicht. Das Original entscheidet
-zwischen zwei technisch verschiedenen Ursachen:
+Der Nutzer hat nach der vorherigen automatischen Ablehnung die Übermittlung
+der P01-Produktkennung an `kid.bnpparibas.com` ausdrücklich freigegeben.
+Der einmalige lesende Abruf ist abgeschlossen; dafür ist keine weitere
+Zustimmung oder erneute Bereitstellung desselben KID erforderlich.
 
-- Eine belegte Formulierung wurde vom
-  [Parser](../../backend/app/providers/product_review_documents.py) übersehen:
-  enge Extraktion samt Originaltext-Regressionsfällen, neuer Parserrevision
-  und bestehendem `reparse_saved_original_kid`-Pfad vorbereiten.
-- Das KID enthält keine passende Feldklasse: einen zusätzlichen originalen
-  Listing-/Produktbedingungsbeleg beim Product-Owner qualifizieren;
-  keine pauschale Einheitsannahme.
+| Nachweis | Tatsächlich geprüft |
+| --- | --- |
+| Originalabruf | **24.11.2026, 21:07:13.255979 Uhr MEZ** gespeichert; HTTP 200, 55.633 Bytes, drei PDF-Seiten; kein Redirect, Begrenzung auf die vorhandenen 2.000.000 Bytes |
+| Herkunft und Integrität | Aus dem bestehenden `kid_url` abgeleitete Quellenreferenz entspricht beiden gespeicherten Referenzhashes; PDF-SHA256 entspricht exakt dem KID- und Product-Review-Hash des PC-Reads |
+| Produktbindung | Produkt- und Basiswertkennung stimmen mit dem archivgebundenen P01-Produkt überein; Produktwährung EUR |
+| Verbraucherparser | Unverändertes `current-product-document-v2` auf denselben Originalbytes: `unit=null` |
+| Inhalt | Vollständiger Text und alle drei gerenderten Seiten geprüft; unabhängige zweite Textprüfung mit demselben Ergebnis |
+| Privater Prüfbeleg | `p01-original-unit-review-private.json`, SHA256 `83c0c6a84d8fcf38c4d4bd2484df5f2a3e44a2e0f91ada06759813cf8e9f913d`; Original, Produktkennung und individuelle Quellenadresse bleiben privat |
 
-Der bestehende Reparseweg erhält Originalbytes/Hash und `retrieved_at`,
-erzeugt eine neue unveränderliche Ownerrevision und prüft die Bindung.
-`ProductReviewReadiness` nutzt ihn vor dem Netzwerk-Backoff. Ein Parserwechsel
-ist erst nach Originalbefund begründet; der aktuelle v2-Head wird ohne neue
-Parserrevision nicht erneut interpretiert.
+| Seite | Für die Einheit relevantes Ergebnis |
+| --- | --- |
+| 1 | Produktart, Währung, Bezugsverhältnis und Auszahlungsregeln; keine ausdrückliche Stücknotierung oder unmittelbare Preisangabe je Optionsschein. Der Referenzpreis betrifft den Basiswert. |
+| 2 | Beispielanlage und Performance-Szenarien; keine Notierungseinheit eines einzelnen Produkts. |
+| 3 | Anlagekosten, Ausübung und allgemeiner Sekundärmarktverkauf; keine zusätzliche Stückpreisdefinition. |
 
-**Zugangsgrenze dieser Untersuchung:** Die automatische Freigabeprüfung hat
-den einmaligen individuellen P01-KID-Abruf abgelehnt, weil dabei eine privat
-abgeleitete Produktkennung an `kid.bnpparibas.com` übermittelt würde und ihr
-die ausdrückliche Freigabe dieser Offenlegung fehlte. Kein alternativer
-individueller Abruf wurde versucht. Dies ist eine Zugangsgrenze dieser
-Arbeitsumgebung, kein BNP-HTTP-Fehler und kein Nachweis fehlender Quelldaten.
-Vorbereitet ist genau der lesende Originalabruf nach ausdrücklicher Freigabe;
-alternativ genügt das bereits auf dem PC gespeicherte KID als private Datei.
+**Ursache ist ein fehlendes Quelldatum in diesem KID, kein nachgewiesener
+Extraktionsfehler.** Der [Parser](../../backend/app/providers/product_review_documents.py)
+und seine Revision bleiben unverändert. Ein erneuter Download oder Reparse
+derselben Originalbytes würde diese Lücke nicht schließen. Dieser Befund
+belegt weder die Originaleinheit von P03/P04 noch eine neue P01-Bewertung.
+
+<a id="gettex-listingeinheit"></a>
+### Ergänzender aktueller Listing-Einheitenbeleg
+
+Am 24.11. wurden die tatsächlich auf der offiziellen
+[Regelwerkseite](https://www.gettex.de/handel/regelwerk) verlinkten Fassungen
+gelesen, nicht lediglich ein älterer Suchtreffer:
+
+| Primärquelle und Fundstelle | Belastbarer Beitrag |
+| --- | --- |
+| [Börsenordnung, Stand 02.11.2026](https://www.gettex.de/fileadmin/Regelwerke/261102_Boersenordnung.pdf), § 55, Seite 43 | Market-Maker-Quotes enthalten Produktkennung, Preis je Stück, Seite und Volumen; für Rententitel gilt die gesonderte Prozentnotierung. |
+| Dieselbe Börsenordnung, § 34, Seite 28; § 63 Abs. 2, Seite 46 | Derivative Produktklassen sind gesondert beschrieben; die gettex-Vorhandelstransparenz veröffentlicht Quotes. |
+| [Handelsordnung für den Freiverkehr](https://www.gettex.de/fileadmin/Regelwerke/180103_Handelsordnung_Freiverkehr.pdf), §§ 1 und 2 Abs. 2, Seite 2 | Gilt ausdrücklich auch für gettex; handelsbezogene Börsenordnung und Ausführungsbestimmungen gelten entsprechend. Der gedruckte Stand ist **03.01.2017**, obwohl der Dateiname mit `180103` beginnt. |
+| [Ausführungsbestimmungen, Stand 17.01.2025](https://www.gettex.de/fileadmin/user_upload/www.gettex.de/Downloads/Regelwerk/250117_Ausfuehrungsbestimmungen.pdf), § 11 Abs. 2 Buchstabe d, Seite 14 | Hebelprodukte mit Stücknotiz sind von prozentnotierten Anlageprodukten getrennt. |
+| [BSW-Produktklassifizierung](https://www.derbsw.de/de/bsw-produktklassifizierung/) | Ordnet Optionsscheine den Hebelprodukten zu; ergänzt die konkrete Produktart aus dem Original-KID. |
+
+**Fachliche Schlussfolgerung aus diesen Quellen:** Die ausdrückliche
+Quote-Konvention kann gemeinsam mit der nachgewiesenen Produktklasse und
+dem exakten ISIN-/MUND-/EUR-Datensatz einen gesonderten aktuellen
+Listing-Einheitenbeleg tragen. Die Einheitenableitung beruht damit auf der
+Originalregel und ihrer konkreten Quellenbindung. Sie ist keine pauschale
+Annahme aus Optionsschein, Währung oder Bezugsverhältnis. Die
+[Dateiprobe](#4-offizieller-gettex-dateidienst-neue-praktische-probe) beweist
+die konkrete Zeile, nicht die heutige PC-Route oder eine neue Preisfrische.
+
+Der Text der Regeloriginale war über den Webreader zugänglich. Ein isolierter
+direkter Download der aktuellen Börsenordnungs-PDF aus dieser Arbeitsumgebung
+antwortete mit **HTTP 403**; kein Umgehungsversuch. Deshalb liegt für diese
+Regeldatei hier noch kein importierbarer Originalbyte-/Hashbeleg vor. Dies ist
+eine andere Abrufklasse als der erfolgreiche BNP-KID-Read und der erfolgreiche
+gettex-Kursdateidownload. Ein dokumentierter Originalimport beziehungsweise
+ein geeigneter offizieller Lesezugang schließt genau diese technische Lücke;
+eine pauschale Aussage über die Erreichbarkeit vom Nutzer-PC folgt daraus nicht.
+
+### Bestehender Owner und genau abgegrenzter Anschluss
+
+Der [aktuelle Product-Reader](../../backend/app/features/product/service/review_evidence.py)
+liest die Einheit ausschließlich aus der KID-Revision. Die
+[Dokumentablage](../../backend/app/features/product/persistence/review_evidence.py)
+unterstützt bisher `KID` und `LISTING_TERMS`; der bestehende Listingtermsimport
+betrifft XSTU-Fristen. Keiner dieser Wege übernimmt bereits den neuen
+aktuellen Einheitenbeleg.
+
+Die vorhandene [Preismaßstabs-API](../../backend/app/features/product/api/price_scale_evidence.py)
+ist ebenfalls kein freier Ersatz: Ihr
+[Vertrag](../../backend/app/features/product/domain/price_scale_evidence.py)
+verlangt ein tatsächlich belegtes endliches Intervall; für einen nutzbaren
+unveränderten Maßstab außerdem `UNCHANGED_ORIGINAL`. Sperrende Revisionen
+mit `ADJUSTMENT_REQUIRED` oder `WITHDRAWN` bleiben ausdrücklich möglich.
+Heutige Börsenregeln und eine einzelne Originalquote
+belegen keine unveränderte Skala seit den Kauftranchen.
+
+Für den begrenzten V2-Anschluss ist deshalb eine additive aktuelle
+Einheitenrevision beim Product-Owner vorzubereiten. Sie bindet Originalregel,
+deren dokumentierte Geltung und Fundstelle, Produktklassifikation sowie
+nachgewiesene Produkt-/Terms-/Listing-/MIC-/Währungsidentität. KID-Herkunft und
+ergänzende Einheitenherkunft bleiben mit eigenen Revisionen, Hashes und Zeiten
+getrennt und gehen gemeinsam in den Bewertungsfingerprint ein. Die
+[V2-Inputkomposition](../../backend/app/features/position_monitoring/service/indicative_entry_inputs.py)
+kennt `saved.route` bereits vor dem Product-Read und muss genau diese Route
+gegen den zusätzlichen Beleg prüfen. Ein Wechsel zu einem anderen Listing
+darf ihn nicht ungeprüft weiterverwenden.
+
+Die 657-MB-Gesamtdatei passt nicht in einen bisherigen 2-MB-Originalimport.
+Ein begrenzter Zielnachweis muss deshalb aus der vollständig geprüften Datei
+gewonnen und an deren Hash, Dateifenster und Originalzeile gebunden werden;
+ein frei behaupteter Dateihash reicht nicht. Die Qualität bleibt
+`CURRENT_UNIT_HISTORY_ASSUMED`; KID-Fakten, historische Maßstabsimporte und
+bekannte harte Widersprüche bleiben unverändert. Der geltende Vertrag wird
+durch diesen Beschaffungsbefund noch nicht erweitert. Umsetzung und
+Verbraucherabnahme gehören zum einen Auftrag im Backlog.
 
 ## 4. Offizieller gettex-Dateidienst: neue praktische Probe
 
@@ -221,7 +292,7 @@ belegt noch keine Dauerverfügbarkeit.
 | Konkreter gettex-Produktdatensatz | Vollständige Originaldatei mit exakter lokaler ISIN-/MIC-/Währungszuordnung; eigener Parserfehler bleibt ein Ausschlussgrund. |
 | Produktlisting und Mapping | Product-Owner `WarrantService.add_listing` für ein belegtes Listing; vorhandenes `configure_gettex_warrant` zunächst als lesende Vorschau. Es legt **kein** fehlendes Listing an und setzt genau ein aktives MUND/MUNC-Listing voraus. |
 | Auswahl und wiederkehrender Bid | Bestehender `PositionQuoteSourceSelector`, regulärer Refresh und `RetainedWarrantQuoteProvider`; auf dem PC denselben Produkt-/Listing-/Quellenbezug bis zum gespeicherten V2-Input prüfen. |
-| Aktuelle Preiseinheit | P01-Emittentenoriginal prüfen und den vorhandenen Product-Owner belegen; nur bei nachgewiesenem Extraktionsfehler den Parser ändern. |
+| Aktuelle Preiseinheit | P01-KID enthält das Feld nachweislich nicht. Zusätzlichen aktuellen Listing-Einheitenbeleg aus expliziter gettex-Konvention und gebundenem Originaldatensatz beim Product-Owner anschließen; keine KID-Parseränderung. |
 | V2-Entscheid | Positiver Bid, passendes Listing/Währung, `source_quote_at` nicht künftig und Alter **≤1800 s** für `DELAYED_SOURCE_BID`, passende Produkteinheit und Sitzungszählung zum Quellenereignis. |
 
 Es gibt keinen automatischen gettex-Discoveryjob, der die fehlende Route
@@ -256,12 +327,22 @@ bleibt auch dort relevant, ohne dass hier ein neuer Fristentscheid gelesen wurde
 
 ## 7. Dokumentationsprüfung und getrennte Codequalifikation
 
-Die aktuelle Dokumentationsfortschreibung enthält ausschließlich technische
-und pseudonymisierte Befunde. Neue öffentliche Zeilen wurden gegen **736**
-private Kennungen und Instrumentbezüge aus den drei gelieferten Paketen
-geprüft: keine Treffer. Relative Verweise/Anker, Markdownstruktur und
-`git diff --check` sind geprüft; der historische Roadmapblob ist unverändert.
-Der Collector und die ausgelieferte Datei bleiben bytegleich.
+Die Dokumentationsfortschreibung enthält ausschließlich technische und
+pseudonymisierte Befunde. Auch die neuen öffentlichen Zeilen wurden gegen
+**736** private Kennungen/Instrumentbezüge und die individuelle P01-KID-Adresse
+geprüft: keine Treffer. Die Dokumentprüfung bestätigt **1.402** relative
+Verweise und **573** Anker im gesamten Dokumentdiff gegenüber Main ohne
+Fehler; Markdownstruktur und `git diff --check` sind geprüft. Der historische
+Roadmapblob, der Collector und seine ausgelieferte Datei bleiben unverändert.
+
+Die Originalprüfung verwendet Code aus
+`b7743ed7b2ba293b1c65b5a3239b84f2354ddb16`; die relevanten Product-/V2-Pfade
+entsprechen dem oben genannten installierten Main. Dieser ergänzende Schnitt
+ändert sechs Dokumente, keine Anwendung, Parserrevision oder Datenbank.
+Der echte P01-PDF-Parserlauf ist eine Quellenprobe und keine neue vollständige
+Backendqualifikation. Die unabhängige fachliche Durchsicht bestätigt die
+Trennung aktueller Listing-Evidenz, unveränderter KID-Fakten und weiterhin
+fehlender historischer/B58-Qualifikation.
 
 Der separate Testimportfix `10d853d3241f33857f839101cd1988472c5b8944` korrigiert
 die beiden vorherigen CI-Importsortierungen. Die gezielte Projektprüfung

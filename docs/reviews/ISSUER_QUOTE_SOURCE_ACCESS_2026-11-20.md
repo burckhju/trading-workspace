@@ -9,6 +9,13 @@ Listing/Mapping, Preiseinheit und frischer PC-Verbraucherinput bleiben offen.
 Die rund 657 MB große Einzeldatei macht Bandbreite/Taktung zu einer eigenen
 Betriebsbedingung. P03/P04 fehlen nur in diesem Fenster; keine allgemeine
 Nichtabdeckung und keine vollständige B58-Qualifikation abgeleitet.
+Die [P01-Originalprüfung von 21:07 Uhr](DEPOT_SOURCE_COVERAGE_READBACK_2026-11-24.md#p01-originaleinheit)
+klärt zusätzlich die fehlende Einheit: Sie steht nicht im bytegleichen KID,
+ein Parserfix ist unbegründet. Das tatsächlich aktuell verlinkte gettex-Regelwerk
+liefert eine ergänzende Quote-Konvention; ein gesonderter aktueller
+Listing-Einheitenbeleg und sein Product-Anschluss sind vorbereitet. Regeltext
+gelesen, direkter PDF-Download hier HTTP 403; ein importierbares Originalpaket
+ist noch kein beobachteter Abruf- oder Verbraucherbestand.
 Die nachfolgende Neun-Emittenten- und Tarifübersicht behält ihren Prüfstand
 vom 20.11.; andere Angebote wurden dadurch nicht neu verifiziert.
 
