@@ -241,10 +241,36 @@ async def test_unusable_listing_evidence_retains_the_precise_source_problem(
 
     report = await combined(context)
 
-    assert report.status != "AVAILABLE" and report.unit is None
+    assert report.status == "MISSING" and report.unit is None
     assert report.listing_unit_evidence.status == status
     assert reason in report.listing_unit_evidence.reasons
     assert "PRODUCT_REVIEW_UNIT_UNPROVEN" in report.reasons
+
+
+@pytest.mark.asyncio
+async def test_explicit_kid_currency_conflict_is_hard_before_optional_source_qualification(
+    context, listing_owner
+):
+    kid = kid_revision(context, currency="USD")
+    kid.document = synthetic_kid_pdf(
+        f"Synthetisches Basisinformationsblatt Optionsschein {kids.ISIN} "
+        f"Basiswert {kids.UNDERLYING_ISIN} Währung des Produkts: USD "
+        "Referenzstelle: New York Stock Exchange Bewertungstag Der Ausübungstag "
+        "bzw. der 15.01.2027"
+    )
+    kid.document_sha256 = hashlib.sha256(kid.document).hexdigest()
+    context.sql.commit()
+    listing_owner.value = replace(
+        current_listing_evidence(kid),
+        status="UNSUITABLE",
+        reasons=("LISTING_UNIT_RULE_ORIGINALS_UNQUALIFIED",),
+    )
+
+    report = await combined(context)
+
+    assert report.status == "UNSUITABLE" and report.unit is None
+    assert "LISTING_UNIT_KID_CURRENCY_MISMATCH" in report.reasons
+    assert listing_owner.calls == []
 
 
 @pytest.mark.asyncio

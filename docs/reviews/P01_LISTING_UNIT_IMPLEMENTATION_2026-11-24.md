@@ -71,6 +71,14 @@ KID-Originale. Bekannte `ADJUSTMENT_REQUIRED`- und `WITHDRAWN`-Belege sperren
 weiter. Ein geeigneter strenger historischer Maßstab bleibt vorrangig.
 V1 und B04/B57/B58 erhalten diesen Quellenzusatz nicht.
 
+Ein unbrauchbarer optionaler Listingbeleg bleibt separat `UNSUITABLE`, liefert
+aber keine aktuelle Einheit: Der kombinierte Product-Read bleibt deshalb
+`MISSING`. Die fehlende Anwendbarkeit des Zusatzes allein verdrängt keine
+unabhängig vollständige dokumentierte Historie. Ohne diese Historie ist der
+V2-Vergleich weiterhin nicht auswertbar. Eine ausdrücklich belegte KID-Währung
+ungleich der Listingwährung bleibt dagegen schon vor der Zusatzquellenprüfung
+ein harter Konflikt; sonstige KID-/Terms-/Basiswertkonflikte bleiben erhalten.
+
 Für V2 gilt weiterhin: positiver Bid, tatsächliche gemeinsame gettex-Quellenzeit
 mit **0–1800 Sekunden** Alter, getrennte Empfangszeit und mindestens 20 zum
 Quellenereignis abgeschlossene Basiswertsitzungen. `original_bid_at` wird aus
@@ -151,7 +159,7 @@ Produktionsregister. Die ausführbaren Nachweise liegen bei den jeweiligen
 Codekomponenten. Lokale Läufe und reguläre CI bleiben von einer PC-Installation
 und einer tatsächlichen P01-Verbraucherabnahme getrennt.
 
-**Tatsächlicher lokaler Abschlusslauf am 24.11.2026:** 171 Tests bestanden,
+**Tatsächlicher lokaler Abschlusslauf am 24.11.2026:** 178 Tests bestanden,
 vier PostgreSQL-Fälle ausdrücklich übersprungen, weil hier keine freigegebene
 Testdatenbank-URL vorliegt. Der Lauf umfasst die drei neuen Product-Unitdateien,
 den neuen CLI-Test, den bestehenden KID-Reader sowie
@@ -168,7 +176,11 @@ genau den Head `20261124_0061`; dies ist noch kein ausgeführtes PostgreSQL-Upgr
 Alle Läufe verwendeten den tatsächlichen CI-Arbeitskontext `backend/`.
 Im Review wurden ein CLI-Wiederholungsfehler und eine zu breite
 MUNC-/Währungsweitergabe an den engen MUND/EUR-Adapter korrigiert und durch
-gezielte Fälle abgesichert. Die bestehende Alembic-Metadatenregistrierung ist
+gezielte Fälle abgesichert. Ein weiterer Vorrangfall ist korrigiert: Ein
+unqualifizierter oder zeitlich nicht anwendbarer Zusatzbeleg hebt die strengere
+vollständige Historie nicht auf. Sechs Kombinationen mit und ohne dokumentierte
+Historie sowie ein echter KID-Währungskonflikt sind gezielt abgesichert.
+Die bestehende Alembic-Metadatenregistrierung ist
 erhalten und nur um die neue Tabelle ergänzt.
 
 1.421 relative Dokumentverweise und 577 Anker wurden ohne Fehler geprüft.

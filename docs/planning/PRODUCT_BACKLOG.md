@@ -24,10 +24,14 @@ tatsächlichen gettex-Route an V2. KID und ergänzender Beleg bleiben getrennt
 nachvollziehbar. Bekannte historische Sperren und B58 werden nicht verändert.
 Die eigene Tabelle ersetzt die frühere Implementierungsskizze einer zusätzlichen
 KID-Dokumentart; der fachliche Owner und Regelumfang bleiben gleich.
-Lokal sind 171 betroffene Tests, Backend-Ruff/Black und mypy erfolgreich.
+Lokal sind 178 betroffene Tests, Backend-Ruff/Black und mypy erfolgreich.
 Vier bewachte PostgreSQL-Fälle benötigen die reguläre CI-Testdatenbank;
 die [Prüfnachweise](../reviews/P01_LISTING_UNIT_IMPLEMENTATION_2026-11-24.md#5-technische-qualifikation)
 halten ausgeführte und noch nicht ausgeführte Prüfungen auseinander.
+Der zusätzliche Review korrigiert den Vorrang dokumentierter Historie:
+Ein bloß ungeeigneter ergänzender Listingbeleg bleibt als fehlende aktuelle
+Einheit sichtbar und verdrängt keinen vollständig belegten Maßstab; echte
+Produkt-/Währungskonflikte bleiben hart.
 
 **Verbleibende konkrete Beschaffung:** Die öffentliche BSW-Klassifikation ist
 als vollständiges Original verfügbar. Die drei offiziellen Börsen-PDFs

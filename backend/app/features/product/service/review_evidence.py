@@ -359,6 +359,15 @@ class ProductReviewEvidenceReader:
         unit_source_kind: Literal["KID_ORIGINAL", "LISTING_ORIGINAL"] | None = (
             "KID_ORIGINAL" if unit == "CURRENCY_PER_WARRANT" else None
         )
+        if (
+            listing_unit_route is not None
+            and facts is not None
+            and facts.currency is not None
+            and facts.currency != listing_unit_route.currency
+        ):
+            conflict = "LISTING_UNIT_KID_CURRENCY_MISMATCH"
+            reasons.append(conflict)
+            hard_problems.add(conflict)
         listing_unit = None
         # This source can close only a missing unit. Keep the current KID's
         # identity, currency, terms and independent hard contradictions intact.
@@ -370,6 +379,7 @@ class ProductReviewEvidenceReader:
             and facts is not None
             and facts.unit is None
             and facts.currency is not None
+            and facts.currency == listing_unit_route.currency
             and not problems
         ):
             from app.features.product.service.listing_unit_evidence import (
@@ -412,7 +422,9 @@ class ProductReviewEvidenceReader:
                     "PRODUCT_REVIEW_LISTING_UNIT_UNSUITABLE",
                 )
                 reasons.extend(invalid_reasons)
-                hard_problems.update(invalid_reasons)
+                # An unusable optional unit source supplies no current unit.
+                # Keep its nested rejection without turning a missing KID unit
+                # into a product contradiction that defeats documented history.
         reasons = list(dict.fromkeys(reasons))
         material: dict[str, Any] = {
             "revision_id": row.id if row else None,

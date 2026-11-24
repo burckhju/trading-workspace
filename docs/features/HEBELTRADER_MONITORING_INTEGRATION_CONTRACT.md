@@ -2632,6 +2632,16 @@ Serverzeit, akzeptiert keine Quellenauswahl-/Zeitparameter und führt keinen
 Import oder Abruf aus. Geänderte Originale, unbekannte Paketstände und
 Bindungswidersprüche bleiben konkrete Datenprobleme.
 
+Ein ungeeigneter zusätzlicher Listingbeleg bleibt mit seinen Gründen separat
+`UNSUITABLE`; die dadurch weiterhin unbelegte aktuelle Einheit bleibt im
+zusammengesetzten Product-Read `MISSING`. Eine fehlende Quellenqualifikation
+oder ein Quellenereignis vor dem beobachteten Regelstand ist kein Beweis eines
+Produktwiderspruchs und verdrängt keinen unabhängig vollständig dokumentierten
+historischen Maßstab. Ohne geeignete Historie ist die Auswertung weiter gesperrt.
+Tatsächliche KID-/Terms-/Basiswertkonflikte, eine ausdrücklich belegte KID-Währung
+ungleich der Listingwährung und ein angeblich verfügbarer Beleg mit falscher
+Ownerbindung bleiben harte Sperren.
+
 V2 reicht seine tatsächlich gespeicherte Quote-Route an den Product-Reader weiter.
 `unit_source_kind=LISTING_ORIGINAL` und `listing_unit_evidence` bewahren die
 ergänzende Herkunft neben der unveränderten KID-Revision; beide gehen in den
