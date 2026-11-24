@@ -128,6 +128,8 @@ def coverage_responses(reference):
     """Serialize real public DTOs with rejected routes and one unrelated holding."""
     from datetime import UTC
 
+    from pydantic import TypeAdapter
+
     from app.features.market_data.service.position_quote_coverage import (
         PositionQuoteCoverage,
         PositionQuoteCoverageReport,
@@ -140,7 +142,6 @@ def coverage_responses(reference):
         RefreshJobCoverage,
         RouteCoverage,
     )
-    from pydantic import TypeAdapter
 
     positions, products = [], []
     now = datetime.now(UTC)
@@ -545,6 +546,8 @@ class CoveragePayloadTest(SourceCoverageFixture):
     def run_payload(self, *, change=None, fail=None, with_document=False):
         import httpx
         import sqlalchemy.ext.asyncio as sa_async
+        from sqlalchemy.dialects import postgresql
+
         from app.core import config
         from app.features.market.persistence.models import UnderlyingModel
         from app.features.market_data.persistence.models import PositionQuoteSourceSelectionModel
@@ -568,7 +571,6 @@ class CoveragePayloadTest(SourceCoverageFixture):
             SqlAlchemyPositionRepository,
             SqlAlchemyReadOnlyTradeRepository,
         )
-        from sqlalchemy.dialects import postgresql
 
         reference = self.reference()
         namespace = {"__name__": "_source_coverage_payload_test"}

@@ -162,6 +162,22 @@ Treffer. Historischer Roadmapblob unverändert. Die technischen Prüfungen
 verwenden keine Live-Datenbank, keinen Dockerdaemon, keinen Provider und
 keinen PC-Zugang; ein realer Kandidatenexport ist damit noch nicht belegt.
 
+**CI-Abgleich vom 24.11., nach Veröffentlichung:** Der
+[Backend-Job auf cdfea27a](https://github.com/burckhju/trading-workspace/actions/runs/45470108506/job/138715450864)
+scheiterte um 20:26:31 Uhr MEZ an genau zwei Ruff-`I001`-Meldungen in den
+Importblöcken des neuen Tests. Die nachfolgenden Test-/Migrationsschritte
+wurden in diesem Lauf nicht ausgeführt. Der vorherige lokale Ruff-Aufruf
+aus der Repositorywurzel mit explizitem Konfigurationspfad klassifizierte
+die Imports anders als der tatsächliche CI-Aufruf aus `backend/`.
+Die externen `pydantic`-/`sqlalchemy`-Imports stehen jetzt vor `app.*`.
+Keine Assertion, kein Gate, kein Collector-/Anwendungscode wurde geändert;
+der ausgelieferte Dateihash bleibt gleich. Der vollständige Ruff-Aufruf
+aus dem tatsächlichen CI-Arbeitsverzeichnis sowie Black sind erfolgreich.
+Der gezielte pytest-Lauf mit `backend/pyproject.toml` meldet
+**56 passed, 87 subtests passed in 1.57s**, ohne Skips oder Warnungen.
+Frontend, End-to-End und Version auf cdfea27a sind erfolgreich; der
+korrigierte Arbeitsstand benötigt seinen eigenen regulären CI-Nachweis.
+
 Hier besteht kein interaktiver Zugang zum privaten PC. Deshalb ist der
 kleinste noch nötige tatsächliche Beleg genau dieser einmalige gebundene
 Export auf der bestehenden Installation. Erst daraus folgt eine begründete
