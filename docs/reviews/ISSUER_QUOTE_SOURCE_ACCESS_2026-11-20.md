@@ -13,9 +13,12 @@ Die [P01-Originalprüfung von 21:07 Uhr](DEPOT_SOURCE_COVERAGE_READBACK_2026-11-
 klärt zusätzlich die fehlende Einheit: Sie steht nicht im bytegleichen KID,
 ein Parserfix ist unbegründet. Das tatsächlich aktuell verlinkte gettex-Regelwerk
 liefert eine ergänzende Quote-Konvention; ein gesonderter aktueller
-Listing-Einheitenbeleg und sein Product-Anschluss sind vorbereitet. Regeltext
-gelesen, direkter PDF-Download hier HTTP 403; ein importierbares Originalpaket
-ist noch kein beobachteter Abruf- oder Verbraucherbestand.
+Listing-Einheitenbeleg und sein
+[Product-/V2-Anschluss](P01_LISTING_UNIT_IMPLEMENTATION_2026-11-24.md) sind
+in PR #370 implementiert. Drei Regel-PDFs fehlen trotz Prüfung der verlinkten
+offiziellen Bezugswege als Originalbytes (hier HTTP403); die BSW-Klassifikation
+liegt vollständig vor. Das Produktionsregister bleibt leer. Ein Importweg
+belegt noch keinen qualifizierten Original- oder PC-Verbraucherbestand.
 Die nachfolgende Neun-Emittenten- und Tarifübersicht behält ihren Prüfstand
 vom 20.11.; andere Angebote wurden dadurch nicht neu verifiziert.
 

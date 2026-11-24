@@ -204,7 +204,7 @@ eine pauschale Aussage über die Erreichbarkeit vom Nutzer-PC folgt daraus nicht
 
 ### Bestehender Owner und genau abgegrenzter Anschluss
 
-Der [aktuelle Product-Reader](../../backend/app/features/product/service/review_evidence.py)
+Der Product-Reader auf dem belegten PC-Stand v1.5.54
 liest die Einheit ausschließlich aus der KID-Revision. Die
 [Dokumentablage](../../backend/app/features/product/persistence/review_evidence.py)
 unterstützt bisher `KID` und `LISTING_TERMS`; der bestehende Listingtermsimport
@@ -220,14 +220,15 @@ mit `ADJUSTMENT_REQUIRED` oder `WITHDRAWN` bleiben ausdrücklich möglich.
 Heutige Börsenregeln und eine einzelne Originalquote
 belegen keine unveränderte Skala seit den Kauftranchen.
 
-Für den begrenzten V2-Anschluss ist deshalb eine additive aktuelle
-Einheitenrevision beim Product-Owner vorzubereiten. Sie bindet Originalregel,
+Der [anschließend implementierte V2-Anschluss](P01_LISTING_UNIT_IMPLEMENTATION_2026-11-24.md)
+ergänzt deshalb eine additive aktuelle Einheitenrevision beim Product-Owner.
+Sie bindet Originalregel,
 deren dokumentierte Geltung und Fundstelle, Produktklassifikation sowie
 nachgewiesene Produkt-/Terms-/Listing-/MIC-/Währungsidentität. KID-Herkunft und
 ergänzende Einheitenherkunft bleiben mit eigenen Revisionen, Hashes und Zeiten
 getrennt und gehen gemeinsam in den Bewertungsfingerprint ein. Die
 [V2-Inputkomposition](../../backend/app/features/position_monitoring/service/indicative_entry_inputs.py)
-kennt `saved.route` bereits vor dem Product-Read und muss genau diese Route
+kennt `saved.route` bereits vor dem Product-Read und prüft genau diese Route
 gegen den zusätzlichen Beleg prüfen. Ein Wechsel zu einem anderen Listing
 darf ihn nicht ungeprüft weiterverwenden.
 
@@ -236,9 +237,13 @@ Ein begrenzter Zielnachweis muss deshalb aus der vollständig geprüften Datei
 gewonnen und an deren Hash, Dateifenster und Originalzeile gebunden werden;
 ein frei behaupteter Dateihash reicht nicht. Die Qualität bleibt
 `CURRENT_UNIT_HISTORY_ASSUMED`; KID-Fakten, historische Maßstabsimporte und
-bekannte harte Widersprüche bleiben unverändert. Der geltende Vertrag wird
-durch diesen Beschaffungsbefund noch nicht erweitert. Umsetzung und
-Verbraucherabnahme gehören zum einen Auftrag im Backlog.
+bekannte harte Widersprüche bleiben unverändert. Der
+[additive Quellenvertrag](../features/HEBELTRADER_MONITORING_INTEGRATION_CONTRACT.md#current-listing-unit-evidence-v1)
+und Migration0061 sind im Arbeitsstand von PR #370 ergänzt. Das feste
+Produktionsregister bleibt leer: Genau drei Börsen-PDFs fehlen als Originalbytes,
+auch die veröffentlichten Börse-München-Downloads antworteten hier HTTP403.
+Die vollständige BSW-Klassifikation ist inzwischen gesichert. Quellenqualifikation,
+Lieferung und tatsächliche P01-Verbraucherabnahme bleiben im einen Backlogauftrag.
 
 ## 4. Offizieller gettex-Dateidienst: neue praktische Probe
 

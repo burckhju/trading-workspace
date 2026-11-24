@@ -2597,8 +2597,52 @@ Ausführungsowner bleibt allein zuständig für Restmenge, gewichteten
 Bruttoeinstand, Korrekturen und historische Ausführungswährung. Ein dokumentierter
 strenger Maßstab hat Vorrang; bekannte Rücknahme, Anpassung oder widersprüchliche
 Bindung darf durch den schwächeren Beleg nicht übergangen werden. Eine nicht
-extrahierbare Einheit bleibt fehlend. Bezugsverhältnis, Mindestausübungsmenge,
+extrahierbare Einheit bleibt ohne gesondert qualifizierten aktuellen
+Listing-Einheitenbeleg fehlend. Bezugsverhältnis, Mindestausübungsmenge,
 Emissionspreis, Ask, Last und Beispielanlagebetrag ersetzen keinen Stückmaßstab.
+
+<a id="current-listing-unit-evidence-v1"></a>
+**Additiver Quellenanschluss vom 24.11.2026:**
+`current-listing-unit-evidence-v1` ergänzt ausschließlich eine fehlende
+KID-Einheit im bestehenden V2-Modus. Product bindet eine unveränderliche
+Listing-Evidenzrevision an Workspace, Produkt, Emittent, Basiswert, aktuelle
+Terms, konkretes aktives Listing, dessen Version, Handelsplatz/MIC, Venue-Version,
+Provider und Währung. Der enge erste Adapter gilt nur für `GETTEX_DELAYED`,
+MUND/EUR und den ausdrücklich erkannten Original-KID-Produktkopf eines
+Call-Optionsscheins auf eine Aktie. Andere Quellen oder Produktklassen erhalten
+dadurch keine pauschale Freigabe.
+
+Vier vorab anhand echter Originalbytes geprüfte Regelrollen — Börsenordnung,
+Freiverkehrsordnung, Ausführungsbestimmungen und Produktklassifikation — müssen
+exakt zu einer hinterlegten Paketversion passen. Der lokale Import prüft eine
+vollständige gettex-gzip-Datei einschließlich CRC und Zielkonflikten; nur daraus
+stammen Dateihash, Fenster, Originalzielzeile und Zeilenhash. Ein frei übergebenes
+JSON, eine URL, ein Hash oder ein Bestätigungsflag ersetzt diesen Scan nicht.
+Der aktuelle Regel-Beobachtungsstand ist von einem ausdrücklich belegten
+Inkrafttreten getrennt. Ohne belegtes `effective_from` beginnt die konservative
+Nutzung erst bei Quellenereignissen ab dem beobachteten Regelstand; daraus wird
+keine historische Gültigkeitsperiode abgeleitet.
+
+Migration0061 ergänzt dafür eine eigene Product-Tabelle mit Revisionskette je
+Listing. Bestehende KID-/Fristdokumentarten und historische Maßstabsimporte bleiben
+erhalten. Die lokale Standardvorschau ist passiv; eine ausdrückliche Anwendung
+prüft Request-ID, erwarteten Vorgänger und Previewfingerprint unter Product-Lock
+erneut. Der passive HTTP-Read verwendet einen eigenen Read-only-Snapshot und
+Serverzeit, akzeptiert keine Quellenauswahl-/Zeitparameter und führt keinen
+Import oder Abruf aus. Geänderte Originale, unbekannte Paketstände und
+Bindungswidersprüche bleiben konkrete Datenprobleme.
+
+V2 reicht seine tatsächlich gespeicherte Quote-Route an den Product-Reader weiter.
+`unit_source_kind=LISTING_ORIGINAL` und `listing_unit_evidence` bewahren die
+ergänzende Herkunft neben der unveränderten KID-Revision; beide gehen in den
+Bewertungsfingerprint ein. Ein späterer gleichartig gebundener KID wird erneut
+geprüft, benötigt aber nicht täglich einen neuen Listingbeleg. Aktuelle Währung,
+Identität, Produktklasse und harte historische Sperren werden nicht ersetzt.
+Die Qualität bleibt `CURRENT_UNIT_HISTORY_ASSUMED`; Quotealter, Sitzungen,
+V1/B04/B57/B58, Produktfristen und B06 werden nicht verändert. Der
+[Umsetzungs- und Originalnachweis](../reviews/P01_LISTING_UNIT_IMPLEMENTATION_2026-11-24.md)
+benennt ausdrücklich das noch leere Produktionsregister und die fehlende
+P01-Betriebsabnahme; ein ausführbarer Importweg ist keine Quellenqualifikation.
 
 Die zusätzliche Referenzkalenderbasis verwendet den im aktuellen Original-KID
 genannten Basiswert und Referenzmarkt. Sie kennzeichnet

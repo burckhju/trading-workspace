@@ -33,8 +33,12 @@ Der [eine nächste Auftrag](docs/planning/PRODUCT_BACKLOG.md#naechster-schnitt)
 konkretisiert deshalb P01: Listing/Mapping, belegte Einheit und frischer V2-Bid.
 Die [freigegebene P01-Originalprüfung von 21:07 Uhr](docs/reviews/DEPOT_SOURCE_COVERAGE_READBACK_2026-11-24.md#p01-originaleinheit)
 belegt inzwischen: Die Einheit fehlt im bytegleichen KID; kein Parserfix.
-Ein ergänzender aktueller Listing-Einheitenbeleg aus gettex-Regelwerk und
-gebundener Originalquelle ist fachlich vorbereitet, noch nicht integriert.
+Der ergänzende aktuelle
+[Listing-Einheitenbeleg](docs/reviews/P01_LISTING_UNIT_IMPLEMENTATION_2026-11-24.md)
+ist mit Product-Import, passivem Reader, Migration0061 und V2-Anschluss in
+PR #370 implementiert. Drei erforderliche Börsen-PDFs fehlen als Originalbytes;
+das Produktionsregister bleibt bis zur Quellenprüfung leer. Installation,
+konkrete Listing-/Mappingauswahl und frischer P01-V2-Entscheid sind noch offen.
 Weitere unveränderte Gesamt-, P02- oder Kandidatenexporte sind dafür nicht
 erforderlich. Der [Collector-Nachweis](docs/reviews/DEPOT_SOURCE_COVERAGE_COLLECTOR_2026-11-24.md)
 erhält die technischen Prüfungen und ihre eigenen CI-Grenzen.

@@ -12,6 +12,7 @@ from tests.unit.backend.features.position_monitoring import (
 from tests.unit.backend.features.position_monitoring import (
     test_hebeltrader_product_price_scale as scales,
 )
+from tests.unit.backend.features.position_monitoring import test_indicative_entry_v2 as v2
 from tests.unit.backend.features.position_monitoring.test_indicative_entry import (
     issuer_saved,
 )
@@ -22,6 +23,8 @@ from app.features.position_monitoring.service import indicative_entry_inputs as 
 from app.features.position_monitoring.service.indicative_entry import (
     IndicativeEntryService,
 )
+from app.features.product.domain.listing_unit_evidence import ListingUnitRoute
+from app.features.product.service.review_evidence import ProductReviewEvidenceReader
 
 case = existing.case
 context = existing.context
@@ -87,6 +90,32 @@ def review_inputs(monkeypatch, context):
 async def read(review_inputs):
     context, _ = review_inputs
     return await module.read_indicative_inputs(context.session, **context.scope, now=NOW)
+
+
+@pytest.mark.parametrize(
+    ("mic", "currency", "supported"),
+    [("MUND", "EUR", True), ("MUNC", "EUR", False), ("MUND", "USD", False)],
+)
+async def test_v2_requests_listing_unit_only_within_its_qualified_source_scope(
+    review_inputs, monkeypatch, mic, currency, supported
+):
+    context, _ = review_inputs
+    saved = v2.delayed_saved()
+    route = replace(context.state.saved.route, venue_mic=mic, currency=currency)
+    context.state.saved = replace(saved, route=route)
+    current = AsyncMock(return_value=v2.current_unit())
+    monkeypatch.setattr(ProductReviewEvidenceReader, "current_for_review", current)
+    await module.read_indicative_inputs(
+        context.session, **context.scope, now=NOW, policy=v2.V2_POLICY
+    )
+    assert current.await_count == 1
+    expected = (
+        ListingUnitRoute(route.warrant_listing_id, "GETTEX_DELAYED", mic, currency)
+        if supported
+        else None
+    )
+    assert current.await_args.kwargs["listing_unit_route"] == expected
+    context.session.commit.assert_not_awaited()
 
 
 async def test_original_owner_inputs_without_target_or_product_open_calendar(

@@ -458,10 +458,18 @@ Die [anschließende P01-Originalprüfung](../reviews/DEPOT_SOURCE_COVERAGE_READB
 ist nach ausdrücklicher Freigabe abgeschlossen: Das KID stimmt bytegleich
 mit der PC-Revision überein und enthält keine ausdrückliche Preiseinheit.
 `unit=null` ist hier kein Parserfehler; ein weiterer KID-Download oder Reparse
-würde das fehlende Feld nicht ergänzen. Der vorbereitete zusätzliche aktuelle
-gettex-Listing-Einheitenbeleg benötigt einen additiven Product-Anschluss und
-separates Originalpaket. Der vorhandene historische Maßstabsimport und der
-XSTU-Fristimport nehmen diesen neuen Belegtyp nicht bereits auf.
+würde das fehlende Feld nicht ergänzen. Der zusätzliche aktuelle
+[gettex-Listing-Einheitenbeleg](../reviews/P01_LISTING_UNIT_IMPLEMENTATION_2026-11-24.md)
+besitzt inzwischen einen additiven Product-/V2-Anschluss mit Migration0061.
+Drei offizielle Regel-PDFs fehlen als Originalbytes; das Quellenregister bleibt
+bis zu ihrer Prüfung leer. Der vorhandene historische Maßstabsimport und der
+XSTU-Fristimport werden dafür nicht zweckentfremdet. Der neue lokale
+`import_listing_unit_originals`-Helfer prüft standardmäßig nur lesend;
+`--apply` verlangt Request-ID und Previewfingerprint. Der passive Read
+`GET /api/v1/warrants/{warrant_id}/listings/{listing_id}/current-unit-evidence`
+zeigt Herkunft und konkrete Gründe. Beide Wege wählen keine Positionsquelle.
+Der Quellen-/Importnachweis und die spätere aktuelle P01-V2-Abnahme bleiben
+getrennt; die belegte PC-Installation v1.5.54 enthält diesen Anschluss noch nicht.
 
 Der Modus `--source-coverage-from` liest die heutigen gespeicherten Fakten
 zu den **im ursprünglichen vollständigen Archiv noch nicht ausgewählten**
