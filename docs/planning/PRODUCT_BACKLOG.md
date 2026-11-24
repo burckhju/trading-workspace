@@ -4,14 +4,44 @@
 
 | Feld | Wert |
 |---|---|
-| Revision | 24.11.2026: gebundener P02-Readback ausgewertet, tatsächliches v1.5.54 und gespeicherte V2-Teilabdeckung belegt; genau ein weiterer Versorgungsauftrag. Die datierten Nachweise vom 19.–23.11., UI-Fachstruktur A und Liefernotizen bleiben erhalten. |
+| Revision | 24.11.2026: P02- und Quellenkandidatenread ausgewertet; aktuelles v1.5.54 und fehlende Routen/Einheiten belegt. Offizielle gettex-Datei bestätigt einen P01-Datensatz; genau ein konkretisierter P01-Versorgungsauftrag. Die datierten Nachweise vom 19.–23.11., UI-Fachstruktur A und Liefernotizen bleiben erhalten. |
 | Erstprüfung | 19.11.2026, 19:31:38 Uhr MEZ (Europe/Berlin), auf `254f0bbd52ab42e0120d381e915dc96c1118796c` / `v1.5.51` |
 | Fortschreibung | 20.11.2026, Beginn 13:46:04 Uhr MEZ; Main-/Release-Delta, tatsächliche CI, PR- und Betriebsnachweise erneut geprüft |
 | Geprüfter Produktstand | Fachlicher Daten-/Readervertrag auf `c7db441de36297a98d47cdf28c64b4e5d9994692` / v1.5.52; Backendreader und bestehende Betriebshelfer bis zum unten genannten Main unverändert. Die neue Oberfläche bleibt an ihre eigenen #372-Nachweise gebunden. |
 | Aktueller Main | `9a5e59dac3bb219cbc40641e62e75871eb2ed131`, Mergecommit #373 vom 22.11.2026, 21:35:28 Uhr MEZ, `VERSION=1.5.54`. Das Delta seit #372/febeb922… ändert ausschließlich Versions-/Liefermetadaten und Dokumentation; Backendpfade unverändert. Main ist kein Nachweis einer PC-Installation. |
-| Tatsächlicher PC | v1.5.54 auf `9a5e59dac3bb219cbc40641e62e75871eb2ed131`, im engen privaten Paket vom 24.11.2026 vor/nach verifiziert; letzte vollständige Inventur weiterhin vom 22.11. |
+| Tatsächlicher PC | v1.5.54 auf `9a5e59dac3bb219cbc40641e62e75871eb2ed131`, zuletzt im Quellenkandidatenpaket vom 24.11.2026, 20:33 Uhr MEZ, vor/nach verifiziert; letzte vollständige Inventur weiterhin vom 22.11. |
 | Funktion | Einzige maßgebliche Quelle des aktuellen Aufgabenstatus; bestehende PB-/FT-/M-Kennungen und Owner bleiben erhalten |
-| Prüfgrenze | Vollständiger Checkout, Quellprüfung, Gesamtreadback vom 22.11. und enger P02-Nutzerread vom 24.11.2026; kein interaktiver PC-/DB-Zugang, keine neue Gesamtinventur oder menschliche Gesamtfachabnahme |
+| Prüfgrenze | Vollständiger Checkout, Quellprüfung, Gesamtreadback vom 22.11., P02- und Quellenkandidatenreads vom 24.11. sowie isolierte gettex-Originaldateiprobe; kein interaktiver PC-/DB-Zugang, keine neue Gesamtinventur oder menschliche Gesamtfachabnahme |
+
+<a id="depotquellen-20261124"></a>
+## Fortschreibung — Quellenkandidaten und konkreter P01-Datensatz, 24.11.2026
+
+**Der einmalige Kandidatenexport ist ausgeführt und ausgewertet.** Der
+[Readback von 20:33:55–20:33:58 Uhr MEZ](../reviews/DEPOT_SOURCE_COVERAGE_READBACK_2026-11-24.md)
+belegt P01/P03/P04 als weiterhin offen und archivgebunden, dieselbe
+Installation v1.5.54/9a5e59d… und vollständigen passiven Transport.
+Alle drei haben keine ausgewählte Quotequelle, keine Mappingrouten und
+leere gespeicherte Auswahlkandidaten; die V2-Heads bleiben `UNAVAILABLE`.
+Die KID-Beschaffung ist jeweils erfolgreich. P01/P03 fehlt die ausdrücklich
+belegte Preiseinheit; P04 benötigt zusätzlich Basiswert- und Kalenderklärung.
+
+**Neue konkrete Quellenevidenz:** Eine vollständig gelesene offizielle
+gettex-MUND-Datei enthält einen passenden positiven Bid und Ask für P01,
+EUR, gemeinsame Quellenzeit 24.11., 18:57:23.707737 Uhr MEZ. Die Gesamtdatei
+wurde ohne Übermittlung privater Produktkennungen abgerufen und mit dem
+vorhandenen Parser einschließlich CRC geprüft. P03/P04 fehlen ausschließlich
+in diesem Dateifenster. Der ältere P01-Treffer ist keine aktuelle V2-Abnahme
+und noch nicht im PC-Datenbestand gespeichert. Der Dateiumfang von rund
+657 MB macht Bandbreite und Taktung zu einer konkreten Betriebsbedingung.
+
+**Genau ein nächster Auftrag:** [P01 über die vorhandenen Quellen- und
+Produktowner für V2 versorgen](#naechster-schnitt). Für diese Ursachenklärung
+ist kein erneuter Gesamt-, P02- oder Kandidatenexport erforderlich. Noch
+benötigt ist das produktgebundene Original zur Preiseinheit. Der individuelle
+BNP-Abruf wurde durch die automatische Freigabeprüfung wegen Übermittlung
+der privaten Produktkennung abgelehnt; der eng vorbereitete Lesezugang oder
+das bereits vorhandene Original genügt. Kein belegter Parserfehler wird
+vor dieser Originalprüfung unterstellt.
 
 <a id="depotdiagnose-20261124"></a>
 ## Fortschreibung — P02-Ursache und gespeicherte V2-Teilabdeckung, 24.11.2026
@@ -49,21 +79,20 @@ zugeschrieben. Der heutige Dokumentationsnachtrag ändert keinen Anwendungscode.
 
 **Genau ein nächster Auftrag:** [Eine weitere tatsächlich offene Position
 über die bestehenden Quellen- und Produktowner versorgen](#naechster-schnitt).
-Die früher ungebundenen P01/P03/P04 sind nur archivgebundene Kandidaten;
-ihr heutiger Bestand und Quellenzustand müssen zuerst festgestellt werden.
+Die damals noch offenen Kandidatenfragen für P01/P03/P04 sind durch den
+[späteren Read von 20:33 Uhr](#depotquellen-20261124) beantwortet; P01 ist
+nach der zusätzlichen gettex-Probe der konkrete nächste Versorgungsfall.
 Eine erneute P02-Sammlung ist für den abgeschlossenen engen Befund unnötig.
 
-**Fortsetzung desselben Auftrags am 24.11.:** Der bestehende Collector
-erhält den [gezielten Quellenkandidatenread](../technical/ISSUER_MONITORING_OPERATIONS.md#gezielter-quellenkandidatenread)
-mit `--source-coverage-from`. Er bindet die zuvor unbestätigten Positionen
-aus dem ursprünglichen vollständigen Archiv, liest aktuelle Coverage-Fakten
-und ergänzt die gespeicherten Auswahlkandidaten, Bewertungsinputs sowie
-Produkt-/Beschaffungs-/KID-Metadaten beim vorhandenen Owner. Die direkte
-Referenzprüfung des Originalarchivs wählt P01/P03/P04 korrekt aus; ein
-neuer PC-Read dieser Positionen liegt noch nicht vor. Der
+**Fortsetzung desselben Auftrags am 24.11.:** Der
+[gezielte Quellenkandidatenread](../technical/ISSUER_MONITORING_OPERATIONS.md#gezielter-quellenkandidatenread)
+mit `--source-coverage-from` ist implementiert, erfolgreich auf dem PC
+ausgeführt und ausgewertet. Der
 [Umsetzungsnachweis](../reviews/DEPOT_SOURCE_COVERAGE_COLLECTOR_2026-11-24.md)
-bindet Code, technische Prüfungen und Nachweisgrenzen. Der eine Auftrag
-bleibt offen bis zum konkreten Verbraucher- oder verbleibenden Datenbefund.
+bewahrt technische Qualifikation und den korrigierten CI-Importsortierfehler;
+der [Betriebsread](../reviews/DEPOT_SOURCE_COVERAGE_READBACK_2026-11-24.md)
+belegt die tatsächlichen Routen-/Produktlücken. Der eine Versorgungsauftrag
+wird auf P01 konkretisiert, statt denselben Export erneut anzufordern.
 
 <details>
 <summary>Readback und P02-Vorbereitung vom 20.–23.11.2026 — damalige Arbeitsstände</summary>
@@ -276,10 +305,12 @@ bleiben getrennt; ältere CI-Nachweise gelten nur für ihre jeweiligen Commits.
 
 **Zusätzlich abgeschlossen seit der Erstprüfung:** Die [Trennung von Produktende und Zahlungstag, erneute Auswertung gespeicherter Originale und der enge lokale XSTU-2026-Originalimport](#market-data-evidence) sind implementiert, qualifiziert, integriert und mit v1.5.52 ausgeliefert. Die früheren Lieferreste für #368 sind damit geschlossen. Ein bereitstehender Importweg belegt keinen tatsächlich ausgeführten Import; der neue private Readback belegt die getrennten Datumsrollen am Verbraucher. Die vollständige Originalupgrade-/Importabnahme bleibt davon getrennt.
 
-**Zuletzt belegter Betrieb ist v1.5.54:** Der [P02-Read vom
-24.11.2026](../reviews/P02_SOURCE_GAP_READBACK_2026-11-24.md) bestätigt
-Installation, Schema, gesunde Dienste und einen gespeicherten V2-Entscheid
-mit Bid. Die letzte vollständige Inventur und Zyklusdiagnose stammen vom
+**Zuletzt belegter Betrieb ist v1.5.54:** Der
+[Quellenkandidatenread vom 24.11., 20:33 Uhr](../reviews/DEPOT_SOURCE_COVERAGE_READBACK_2026-11-24.md)
+bestätigt Installation, Schema, gesunde Dienste und drei offene, weiterhin
+quellen-/produktblockierte Positionen. Der frühere
+[P02-Read](../reviews/P02_SOURCE_GAP_READBACK_2026-11-24.md) belegt seinen
+gespeicherten V2-Entscheid mit Bid am selben Tag um 18:21 Uhr. Die letzte vollständige Inventur und Zyklusdiagnose stammen vom
 [22.11.](../reviews/DEPOT_DATA_READBACK_2026-11-22.md): damals vier offene
 Positionen, beide Prüfpfade mit 4/4 Datenproblemen und null technischen
 Positionsfehlern. Historische Sechser-/Viererbefunde und der neue Einzelread
@@ -287,13 +318,12 @@ bleiben eigene Zeit-/Mengenschnitte ([Betriebsevidenz](#betriebsnachweis)).
 
 **Bisherige Teilabschlüsse bleiben erhalten:** Persistente [feste Chart-Watchlist](#pb-012-watchlist) mit S&P 500 und 30 ETFs; [Journal](#pb-019-journal), [Evidence](#pb-019-materialization), [Lessons](#pb-019-lessons) und [historische Korrekturen](#pb-018-currentness); [Bruttoauswertungen](#pb-019-performance-evaluations), [vier Basisstatistiken](#pb-019-performance-statistics) und [Verkaufsbeitragsgrafik](#pb-019-performance-dashboards); [konkrete Kandidaten-Governance mit gesonderter Aktivierung und Rückkehr](#pb-020-candidate-family). Die zugehörigen Funktionspfade sind gegenüber der Produktbasis `c7db441…` unverändert; die genannten Regressionsergebnisse sind ausschließlich an diese Produktbasis gebunden. Ihre Implementierung wird nicht erneut eingeplant; offene Fachabnahmen und reale Quellenabdeckung bleiben getrennt.
 
-**Wesentliche Reste:** P02 hat einen konkretisierten historischen Gapgrund und einen jüngeren auswertbaren V2-Entscheid. Für die übrigen archivierten Positionen liegt kein neuer Zustandsread vor; die damaligen Quellen-/Einheits-/Basiswert-/Kalenderlücken bleiben zu prüfen. Persönliche Exitwahl, letzter Handelstag, Produktschluss, strenge Originalkurs-/Statusbelege und B06-Grundevidenz bleiben eigenständige Voraussetzungen. Der allgemeine Watchlistumfang, Scanner, Marktbreite, Produktscore, Produktwechsel sowie weitergehende Lern-, Performance- und Modellanforderungen bleiben mit konkreten Entscheidungs-, Implementierungs- oder Abnahmeresten erhalten. Die strenge B58-Versorgung und übrigen B-/F207-Umfänge werden nicht durch die indikative Alternative geschlossen.
+**Wesentliche Reste:** P02 hat einen konkretisierten historischen Gapgrund und einen jüngeren auswertbaren V2-Entscheid. P01/P03/P04 sind inzwischen aktuell gebunden und gelesen: keine Mappingrouten/Kandidaten, erfolgreiche KID-Beschaffung ohne Preiseinheit; P04 zusätzlich Basiswert-/Kalenderlücke. Ein P01-gettex-Bid ist in einer getrennten Originaldateiprobe belegt, noch nicht als aktueller PC-Input. Persönliche Exitwahl, letzter Handelstag, Produktschluss, strenge Originalkurs-/Statusbelege und B06-Grundevidenz bleiben eigenständige Voraussetzungen. Der allgemeine Watchlistumfang, Scanner, Marktbreite, Produktscore, Produktwechsel sowie weitergehende Lern-, Performance- und Modellanforderungen bleiben mit konkreten Entscheidungs-, Implementierungs- oder Abnahmeresten erhalten. Die strenge B58-Versorgung und übrigen B-/F207-Umfänge werden nicht durch die indikative Alternative geschlossen.
 
-**Genau ein nächster Auftrag:** [Eine weitere tatsächlich offene Position
-für V2 versorgen](#naechster-schnitt). Heutige Bindung und gespeicherte
-Quellenkandidaten aus den bestehenden Coverage-Ownern feststellen, den
-belegten Beschaffungs-/Mapping-/Produktrest gezielt schließen und die
-Wirkung beim V2-Verbraucher prüfen. Das Ergebnis ist eine zusätzliche
+**Genau ein nächster Auftrag:** [P01 für V2 versorgen](#naechster-schnitt).
+Die Quellenkandidatenfrage ist beantwortet; jetzt die belegte gettex-Route
+über Listing/Mapping anbinden und die Preiseinheit am Original qualifizieren.
+Anschließend den ausreichend frischen tatsächlichen V2-Verbraucherinput prüfen. Das Ergebnis ist eine zusätzliche
 beurteilbare Position oder ein exakt belegter verbleibender Daten-/
 Zugangsblocker; neue Provider- und Kostenentscheidungen bleiben gesondert.
 
@@ -311,7 +341,7 @@ Die Erstprüfung galt dem Produktcommit 254f0bbd… / v1.5.51. Für diese Fortsc
 
 ## Orientierung und Priorisierung
 
-Die [acht dauerhaften Planungssichten und drei Querschnittsthemen](MODULE_AND_FEATURE_CATALOG.md#planungssichten) sind keine neuen Paketgrenzen. Die [Lieferziele A–D](../foundation/ROADMAP.md#lieferziele) sind keine starre Reihenfolge. **Aktuelle Priorität, am 24.11.2026 fortgeschrieben: Datenversorgung für verlässliche Depotüberwachung in A.** Der frühere Fokus **B: Abschluss/Journal/Lernen** und **C: belastbare Performance** bleibt als ursprüngliches Lieferziel erhalten; die dortigen Daten- und Definitionslücken sind im neuen Versorgungsnachweis ausdrücklich ausgewiesen. D verwendet bestehende Kandidaten-Governance statt Neubau. Governance und Betrieb begleiten alle Ziele. Die positionsweise Verbraucherdiagnose ist seit dem 22.11. ausgewertet; getrennte Produktende-/Zahlungsrollen belegen die begrenzte Verbraucherwirkung des #368-Fixes. Offen bleiben die private Originalupgrade-/Kalenderimport-Detailabnahme und konkrete Datenversorgung. Der enge P02-Read ist am 24.11. ausgewertet; ein gespeicherter V2-Entscheid mit Bid ist belegt. Der eine nächste Auftrag klärt die aktuelle Bindung der zuvor ungebundenen Kandidaten und versorgt eine weitere offene Position über die bestehenden Owner. Erfolgreicher Runnerbetrieb mit Datenwarnungen ist keine fachliche Positionsabdeckung.
+Die [acht dauerhaften Planungssichten und drei Querschnittsthemen](MODULE_AND_FEATURE_CATALOG.md#planungssichten) sind keine neuen Paketgrenzen. Die [Lieferziele A–D](../foundation/ROADMAP.md#lieferziele) sind keine starre Reihenfolge. **Aktuelle Priorität, am 24.11.2026 fortgeschrieben: Datenversorgung für verlässliche Depotüberwachung in A.** Der frühere Fokus **B: Abschluss/Journal/Lernen** und **C: belastbare Performance** bleibt als ursprüngliches Lieferziel erhalten; die dortigen Daten- und Definitionslücken sind im neuen Versorgungsnachweis ausdrücklich ausgewiesen. D verwendet bestehende Kandidaten-Governance statt Neubau. Governance und Betrieb begleiten alle Ziele. Die positionsweise Verbraucherdiagnose ist seit dem 22.11. ausgewertet; getrennte Produktende-/Zahlungsrollen belegen die begrenzte Verbraucherwirkung des #368-Fixes. Offen bleiben die private Originalupgrade-/Kalenderimport-Detailabnahme und konkrete Datenversorgung. Der enge P02-Read ist am 24.11. ausgewertet; ein gespeicherter V2-Entscheid mit Bid ist belegt. Der spätere Quellenkandidatenread bestätigt P01/P03/P04 als offen und konkret quellen-/produktblockiert; ein offizieller gettex-Dateitreffer macht P01 zum belegten nächsten Versorgungsfall beim bestehenden Owner. Erfolgreicher Runnerbetrieb mit Datenwarnungen ist keine fachliche Positionsabdeckung.
 
 P0–P3 bleiben verwendbar. Weder eine fehlende Betriebsabnahme noch eine offene Umfangsentscheidung erzeugt einen pauschalen Rücksprung aller Implementierungen. Ein enger V1-Ausschluss entfernt keine ursprüngliche Anforderung; dafür wäre eine ausdrückliche datierte Produktentscheidung nötig.
 
@@ -491,16 +521,19 @@ Alle neun tatsächlich ausgeführten Jobs dieses alten PR-Standes waren erfolgre
 
 **In der übernommenen #369-Konsolidierung tatsächlich geprüft:** ursprüngliche 63 Inhaltsziel-Vorkommen gegen alle vorhandenen Teilfähigkeiten; tatsächliche Services/Domainverarbeitung, Persistenz, API-/UI-Consumer und relevante Testassertionen; historische ADR-/Abnahme-/Releaseunterlagen; PR-Diffs und Main-/Tagidentität. Die Fortschreibung vom 20.11.2026 ergänzt den integrierten #368, die oben direkt gelesenen aktuellen Main-CI-Logs sowie den gesondert gebundenen historischen Dokumentations-PR-Nachweis. Der damalige #369-Dokumentdiff wurde erfolgreich geprüft: fünf Dokumente, 76 Teilfähigkeiten, 63 unverändert zugeordnete Inhaltsziele, 142 Markdown-Tabellen und 726 lokale Linkvorkommen einschließlich 374 Ankerverweisen; UTF-8/LF, balancierte Details-Blöcke, `git diff --check`, unverändertes Archiv und historischer Traceabilitybestand. Der neue dritte Main-Betriebsnachtrag ist wortgleich erhalten, beide Dokumentkonflikte sind aufgelöst. Gegenüber dem damaligen Produkt-Main waren ausschließlich die fünf Planungs-/Verweisdokumente geändert. Diese Zählungen gelten für #369 und werden nicht ungeprüft auf den jetzigen Datenversorgungsnachtrag übertragen.
 
-**Nicht lokal oder am PC neu ausgeführt:** vollständige Backend-/Frontend-/Browserprüfungen, Datenbankmigration, PC-Installation, Reparse gespeicherter Originale, Kalenderimport, Providerabruf, Modellaktivierung oder Zustellung. Der Dokumentdiff verändert keine Anwendung. Die oben gelesenen Läufe sind bereits ausgeführte CI-Nachweise, keine Behauptung eines eigenen lokalen Neulaufs. Reguläre CI des fortgeschriebenen Dokumentations-Heads wird im bestehenden PR separat an dessen tatsächlichen Head/Testmerge gebunden. CI-Artefaktarchive wurden für diese Fortschreibung nicht heruntergeladen.
+**Im damaligen Dokumentationsabgleich vom 20.11. nicht lokal oder am PC neu ausgeführt:** vollständige Backend-/Frontend-/Browserprüfungen, Datenbankmigration, PC-Installation, Reparse gespeicherter Originale, Kalenderimport, Providerabruf, Modellaktivierung oder Zustellung. Der Dokumentdiff verändert keine Anwendung. Die oben gelesenen Läufe sind bereits ausgeführte CI-Nachweise, keine Behauptung eines eigenen lokalen Neulaufs. Reguläre CI des fortgeschriebenen Dokumentations-Heads wird im bestehenden PR separat an dessen tatsächlichen Head/Testmerge gebunden. CI-Artefaktarchive wurden für diese Fortschreibung nicht heruntergeladen.
 
-**Aktuelle Zugriffsgrenze:** Der vollständige private Readback vom 22.11.
-und die enge P02-Ergänzung vom 24.11. liegen vor und sind ausgewertet.
-Der konkrete historische Gap und die aktuelle gespeicherte P02-Bewertung
-sind damit nicht länger unzugänglich. Ein interaktiver PC-/DB-Zugang,
-die damaligen Rohpreisfelder, vollständige Zwischenbewertungen und aktuelle
-Reads der übrigen Positionen fehlen weiterhin. Der [nächste Auftrag](#naechster-schnitt)
-bündelt ausschließlich die für deren Quellenbindung fehlenden vorhandenen
-Coverage-Fakten; kein erneuter P02- oder unveränderter Gesamtexport.
+**Aktuelle Zugriffsgrenze:** Gesamtread vom 22.11., P02- und
+Quellenkandidatenreads vom 24.11. liegen vor und sind ausgewertet. Heutige
+Bindungen, Auswahlkandidaten und Produktbelege der drei übrigen archivierten
+Positionen sind damit zugänglich. Interaktiver PC-/DB-Zugang, frühere
+P02-Rohpreisfelder und vollständige Zwischenbewertungen fehlen weiterhin.
+Für P01 fehlt hier die ausdrückliche Originalstelle zur Preiseinheit;
+der individuelle externe KID-Read benötigt nach automatischer Ablehnung
+eine ausdrückliche Freigabe oder das privat bereitgestellte gespeicherte
+Original. Der [nächste Auftrag](#naechster-schnitt) schließt den konkreten
+P01-Original-/Listing-/Mapping-/Verbraucherrest; kein erneuter unveränderter
+Gesamt-, P02- oder Kandidatenexport.
 
 <a id="betriebsnachweis"></a>
 ### Zeitliche Einordnung der Betriebsevidenz
@@ -515,6 +548,8 @@ Coverage-Fakten; kein erneuter P02- oder unveränderter Gesamtexport.
 | 19.11.2026, Integration von #368 und Veröffentlichung um 20:45:01 Uhr MEZ | Fix in Main `c7db441de36297a98d47cdf28c64b4e5d9994692`, aktuelle CI erfolgreich, Tag v1.5.52 veröffentlicht | Softwareintegration/-auslieferung abgeschlossen. **Inzwischen durch den PC-Readback vom 22.11. ergänzt:** Installation und regulärer V2-Zyklus belegt, am 22.11. damals 0/4 vollständig auswertbar; vollständiger Original-Reparse/Kalenderimport bleibt offen. Kein Betriebsnachweis aus Main-CI abgeleitet |
 | 22.11.2026, Readback 20:50:41–20:50:45 Uhr MEZ, letzter Zyklus 20:44:54–20:45:35 Uhr MEZ | [PC-Readback vom 22.11.2026](../reviews/DEPOT_DATA_READBACK_2026-11-22.md): v1.5.52/c7db441…, Schema0060, vier gesunde laufende Dienste, 30/30 GETs, vier offene Positionen; beide V2-Pfade je vier Datenprobleme und null technische Positionsfehler | Tatsächliche Installation und vollständige Verbraucherdiagnose belegt. 4/4 Ausführungswährungen vorhanden; drei Routen fehlen, eine ohne Bid; historische/Produkt-/Fristlücken bleiben. Keine Gesamtfachabnahme. |
 | 24.11.2026, enger Read 18:23:08–18:23:10 Uhr MEZ; gespeicherte P02-Bewertung 18:21:41 Uhr MEZ | [P02-Nachweis](../reviews/P02_SOURCE_GAP_READBACK_2026-11-24.md): tatsächliches v1.5.54/9a5e59d…, Schema0060, vier gesunde Dienste; archivierter `JPMORGAN_SNAPSHOT_TIMEOUT`; neuer Bid und `BELOW_ENTRY`, Empfangsalter 10,456 s | Enger Diagnoseauftrag erfüllt; Statusgap ohne neue V2-Preisunterbrechung. Originalzeit/-status weiter unqualifiziert. Keine aktuelle Gesamtinventur, Frist-, B06- oder Verlaufsabnahme. Kein Zusammenhang mit noch nicht installiertem PR-370-Fix behauptet. |
+| 24.11.2026, Quellenkandidatenread 20:33:55–20:33:58 Uhr MEZ | [Gebundener Readback](../reviews/DEPOT_SOURCE_COVERAGE_READBACK_2026-11-24.md): dieselbe v1.5.54-Installation, drei offene Archivkandidaten, keine Mappingrouten/Auswahlkandidaten; erfolgreiche KID-Beschaffung mit fehlenden Einheiten und zusätzlichem P04-Konflikt | Einmalige Diagnosefrage beantwortet; keine aktuelle Gesamtinventur und keine neue fachliche V2-Abdeckung. |
+| 24.11.2026, externe Gesamtdatei 20:40:50–20:41:25 Uhr MEZ; Offlineparser 20:43:22–20:43:35 Uhr | [Gettex-Probe](../reviews/DEPOT_SOURCE_COVERAGE_READBACK_2026-11-24.md#4-offizieller-gettex-dateidienst-neue-praktische-probe): vollständige Originaldatei/CRC; positiver P01-EUR/MUND-Bid, gemeinsame Quellenzeit 18:57:23.707737 Uhr | Historische konkrete Quellendeckung, noch kein PC-Listing/Mapping oder aktueller Verbraucherpreis; P03/P04 fehlen nur im untersuchten Fenster. |
 
 <a id="pr-abgleich"></a>
 ### Aktuelle PRs gegenüber Main
@@ -2326,7 +2361,7 @@ Nachweis vollständiger realer Währungsabdeckung oder einer neuen Auslieferung.
 | Nachweisfeld | Einordnung |
 |---|---|
 | Zuordnung | M1: Datenprovider; M2: Datenbasis; spätere TC-001-Fähigkeit. Bereich/Querschnitt: 2. Bestehender Bezug: TC-001; fachliche Consumer bleiben Eigentümer ihrer Ergebnisse. Lieferziel: A. |
-| Arbeitsstatus | Released — Qualitäts-/Provenienzverträge; Observed — Gesamtread vom 22.11. und gebundene P02-V2-Teilabdeckung vom 24.11.; weitere Datenversorgung und strenge Regelabdeckung offen. Technical Review — archivgebundene Quellenkandidaten-Ergänzung vorbereitet; deren PC-Ergebnis steht aus. |
+| Arbeitsstatus | Released — Qualitäts-/Provenienzverträge; Observed — Gesamtread vom 22.11. und gebundene P02-V2-Teilabdeckung vom 24.11.; weitere Datenversorgung und strenge Regelabdeckung offen. Observed — archivgebundene Quellenkandidaten-Ergänzung vom 24.11., 20:33 Uhr ausgewertet; konkrete P01-Originaldateideckung separat geprüft, produktive P01-Verarbeitung offen. |
 | Abgeschlossener Teilumfang | Technische Qualitäts-/Zeittrennung, V2-Verarbeitung und Datenproblemepisoden sind ausgeliefert. Zusätzlich ist der falsche Produktende-/Zahlungstagvergleich beim Product-Owner in v1.5.52 korrigiert, qualifiziert und veröffentlicht; diese technische Ursache ist keine offene Implementierungsaufgabe mehr. Die zusätzliche [Collector-Ergänzung](../reviews/DEPOT_SOURCE_COVERAGE_COLLECTOR_2026-11-24.md) erschließt aktuelle gespeicherte Coverage und bislang nicht exportierte Auswahl-/Produkt-/Bewertungsfakten; dies ist noch keine neue Positionsabnahme. |
 | Soll / Nicht-Soll | **Soll:** Fehlende, veraltete, indikative und nicht anwendbare Daten sowie Kurs-, Abruf- und Erfassungszeiten unterscheiden. **Nicht-Soll:** Erfolgreicher Abruf ersetzt keine aktuelle verwertbare Quote; unbekannt ist nicht Null oder geringes Risiko. |
 | Befundklasse / Lückenart | Vorhandene Funktion mit offener realer Datenversorgung und Betriebswirkungsprüfung. **Art der Restarbeit:** Quellen-/Einheiten-/Identitätsqualifikation, persönliche Entscheidungen und Nachweis am privaten Bestand; Datumsfix technisch abgeschlossen. |
@@ -2335,7 +2370,7 @@ Nachweis vollständiger realer Währungsabdeckung oder einer neuen Auslieferung.
 | Fachliche Abnahme | Quellenmoduspacing Variante 2 war ausdrücklich entschieden; V2 ist eine ausdrücklich beauftragte indikative Alternative. Das ist keine B58- oder vollständige Depotqualifikation. |
 | Software-Auslieferung | Im geprüften Main und veröffentlichten Tag v1.5.52 enthalten; konkrete Softwareauslieferung, keine dadurch erteilte Gesamtfachabnahme. |
 | Betriebsnachweis | PR [#367](https://github.com/burckhju/trading-workspace/pull/367), Nutzerbeleg 19.11.2026: v1.5.51/254f0bbd… installiert, vier Dienste healthy, Readiness 200/ready, Schema 20261118_0060. Audit 18:13:12 MEZ: V2-Zyklus 18:06:42–18:07:17 MEZ, 35,307 s, running=true, last_error=null; Review und Deadline je 6 bewertet/6 Datenprobleme/0 technische Positionsfehler. Kein eigener PC-Zugriff dieser Prüfung. Historische Ursache-/Liefernachweise aus [#368](https://github.com/burckhju/trading-workspace/pull/368) bleiben erhalten. Neuer [PC-Readback vom 22.11.2026](../reviews/DEPOT_DATA_READBACK_2026-11-22.md): v1.5.52/c7db441…, Schema0060, vier offene Positionen, regulärer V2-Zyklus mit 4/4 Einstands- und 4/4 Fristdatenproblemen bei jeweils null technischen Positionsfehlern. Getrennte Produktende-/Zahlungsrollen beobachtet; exakter Parserhead/Originalupgrade und konkreter Kalenderimport dadurch nicht vollständig nachgewiesen. Frühere Sechser-/Viererbefunde werden nicht über Kennungen hinweg gleichgesetzt. Späterer [P02-Read vom 24.11.2026](../reviews/P02_SOURCE_GAP_READBACK_2026-11-24.md): tatsächliches v1.5.54/9a5e59d…, Schema0060 und vier gesunde Dienste; historischer Timeout konkret, jüngeres `BELOW_ENTRY` mit Bid um 18:21:41 Uhr MEZ. Kein neuer Gesamtzyklus-/Inventar-/Fristnachweis. |
-| Restarbeit / nächste Abhängigkeit | Die Vierer-Matrix vom 22.11. belegt damalige Käufe/Kaufwährungen sowie Quellen-/Einheits-/Basiswert-/Kalender-/Fristlücken. Der P02-Gap ist seit 24.11. konkretisiert, eine jüngere gespeicherte V2-Bewertung mit Bid beobachtet. **Einzige nächste Abhängigkeit:** [eine weitere tatsächlich offene Position versorgen](#naechster-schnitt), beginnend mit aktueller Archiv-/Quellenbindung der zuvor unbestätigten Kandidaten. Die [Quellen-/Kostenprüfung](../reviews/ISSUER_QUOTE_SOURCE_ACCESS_2026-11-20.md) bleibt datiertes Beschaffungsangebot; tatsächliche Listingdeckung, Rechte und Originalstatus werden nicht daraus abgeleitet. Weitere Abnahme bleibt getrennte Regelabdeckung am Verbraucher, kein Runnerzähler. |
+| Restarbeit / nächste Abhängigkeit | Die Vierer-Matrix vom 22.11. belegt damalige Käufe/Kaufwährungen sowie Quellen-/Einheits-/Basiswert-/Kalender-/Fristlücken. Der P02-Gap ist seit 24.11. konkretisiert, eine jüngere gespeicherte V2-Bewertung mit Bid beobachtet. **Einzige nächste Abhängigkeit:** [eine weitere tatsächlich offene Position versorgen](#naechster-schnitt), jetzt konkret P01 nach abgeschlossener Archiv-/Quellenbindung und positivem gettex-Originaldateitreffer: belegte Einheit, Listing/Mapping und frischer Verbraucherpreis. Die [Quellen-/Kostenprüfung](../reviews/ISSUER_QUOTE_SOURCE_ACCESS_2026-11-20.md) bleibt datiertes Beschaffungsangebot; tatsächliche Listingdeckung, Rechte und Originalstatus werden nicht daraus abgeleitet. Weitere Abnahme bleibt getrennte Regelabdeckung am Verbraucher, kein Runnerzähler. |
 | Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
 
 </details>
@@ -2399,7 +2434,7 @@ historische Nachweise, keine erneute Implementierungsabhängigkeit.
 | Fachliche Abnahme | V2-Original-/Referenzmarkt-/Historienannahmen ausdrücklich als begrenzt beauftragt; Annahme historischer Kontinuität und Nutzeroriginal sind keine unabhängige Quellenprüfung. |
 | Software-Auslieferung | Im geprüften Main und veröffentlichten Tag v1.5.52 enthalten; konkrete Softwareauslieferung, keine dadurch erteilte Gesamtfachabnahme. |
 | Betriebsnachweis | Installation des damaligen v1.5.51-Codes durch PR [#367](https://github.com/burckhju/trading-workspace/pull/367) belegt; Nutzung und fachliche Abnahme genau dieses Teilpfads nicht separat nachgewiesen. Historische Ursache-/Liefernachweise aus [#368](https://github.com/burckhju/trading-workspace/pull/368) bleiben erhalten. Neuer [PC-Readback vom 22.11.2026](../reviews/DEPOT_DATA_READBACK_2026-11-22.md): v1.5.52/c7db441…, Schema0060, vier offene Positionen, regulärer V2-Zyklus mit 4/4 Einstands- und 4/4 Fristdatenproblemen bei jeweils null technischen Positionsfehlern. Getrennte Produktende-/Zahlungsrollen beobachtet; exakter Parserhead/Originalupgrade und konkreter Kalenderimport dadurch nicht vollständig nachgewiesen. Frühere Sechser-/Viererbefunde werden nicht über Kennungen hinweg gleichgesetzt. Späterer [P02-Read vom 24.11.2026](../reviews/P02_SOURCE_GAP_READBACK_2026-11-24.md): tatsächliches v1.5.54/9a5e59d…, Schema0060 und vier gesunde Dienste; historischer Timeout konkret, jüngeres `BELOW_ENTRY` mit Bid um 18:21:41 Uhr MEZ. Kein neuer Gesamtzyklus-/Inventar-/Fristnachweis. |
-| Restarbeit / nächste Abhängigkeit | Getrennte Produktende-/Zahlungsrollen waren am 22.11. bei 4/4 beobachtet; der falsche Datumswiderspruch fehlte. Aktueller KID-Parserhead, genau eine Originalupgrade-Folgerevision und konkrete Kalenderimportherkunft bleiben gezielt zu belegen. Der P02-Journal-/Assessmentread ist am 24.11. abgeschlossen. Produktmaßstäbe, der damalige Produkt-/Basiswertkonflikt, Originalstatus/-zeit und B06-Grundevidenz bleiben offen; vorhandene Käufe/Währungen nicht neu erfassen. **Einzige nächste Abhängigkeit:** [Quellen- und erforderliche Produktbelege für eine weitere offene Position](#naechster-schnitt). Erhaltene Originalupgrade-/Importabnahmegrenzen gelten weiter. |
+| Restarbeit / nächste Abhängigkeit | Getrennte Produktende-/Zahlungsrollen waren am 22.11. bei 4/4 beobachtet; der falsche Datumswiderspruch fehlte. Der aktuelle KID-Parserhead ist für P01/P03/P04 am 24.11. als current-product-document-v2 beobachtet. Genau eine Originalupgrade-Folgerevision und konkrete Kalenderimportherkunft bleiben gezielt zu belegen. Der P02-Journal-/Assessmentread ist am 24.11. abgeschlossen. Produktmaßstäbe, der damalige Produkt-/Basiswertkonflikt, Originalstatus/-zeit und B06-Grundevidenz bleiben offen; vorhandene Käufe/Währungen nicht neu erfassen. **Einzige nächste Abhängigkeit:** [Quellen- und erforderliche Produktbelege für eine weitere offene Position](#naechster-schnitt). Erhaltene Originalupgrade-/Importabnahmegrenzen gelten weiter. |
 | Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
 
 </details>
@@ -2436,13 +2471,13 @@ historische Nachweise, keine erneute Implementierungsabhängigkeit.
 | Arbeitsstatus | Observed — Gesamtzyklus mit Datenproblemen auf v1.5.52 und gespeicherte P02-V2-Teilabdeckung auf v1.5.54 am 24.11.; Released — technische Teilpfade einschließlich Datumsfix; Business Review — übrige reale Regelabdeckung und Gesamtumfang. |
 | Abgeschlossener Teilumfang | Ausgelieferte Reader, B04/B57-Rechenkern, indikative V2 und Produktfristreview bleiben abgeschlossen. Neu: tatsächliche v1.5.52-Installation und regulärer V2-Zyklus, vollständige Vierer-Ursachenmatrix und getrennte Produktende-/Zahlungsrollen am Verbraucher belegt. Vollständige Originalupgrade-/fachliche Depotabnahme ist dadurch nicht erteilt. Am 24.11. zusätzlich: archivgebundener P02-Gapgrund und jüngerer tatsächlicher V2-Entscheid `BELOW_ENTRY` mit Bid auf v1.5.54; keine aktuelle Gesamtquote. |
 | Soll / Nicht-Soll | **Soll:** Effektive Positions-/Managementregeln mit richtiger Instrument-/Währungsbasis auswerten; deduplizierte fachliche Alerts erhalten. **Nicht-Soll:** Alert ist keine Notification, kein SELL und keine automatische Stop-/Zieländerung. |
-| Befundklasse / Lückenart | Vorhandene Funktion mit konkret belegten Daten-/Zuordnungs-/Entscheidungslücken. Datumsfix wirkt am Verbraucher; P02 ist am 24.11. indikativ beurteilbar gespeichert, übrige Positionen nicht neu gelesen. **Art der Restarbeit:** gezielte Versorgung beim bestehenden Owner und Umsetzung der erhaltenen übrigen F207-Reste. |
+| Befundklasse / Lückenart | Vorhandene Funktion mit konkret belegten Daten-/Zuordnungs-/Entscheidungslücken. Datumsfix wirkt am Verbraucher; P02 ist am 24.11. indikativ beurteilbar gespeichert; P01/P03/P04 sind später neu gelesen und konkret quellen-/produktblockiert. **Art der Restarbeit:** gezielte Versorgung beim bestehenden Owner und Umsetzung der erhaltenen übrigen F207-Reste. |
 | Implementierung / Consumer | Runner komponiert getrennt alte Stop-/Ziel-Cycle, Risiko, B04/B57, indikative V1/V2 und kursfreie Produkttermine. V2 hat persistente Bewertungen/Episoden/Alerts, gemeinsame Familie über V1/V2, qualitätsgebundene Erholung und Vollverkaufsbehandlung. ProductDeadline hat eigene Bewertungen/Episoden/Outbox. B04/B57 streng implementiert; QUALIFIED_B58_PATHS=() und Hebeltrader-Scope getrennt. Passive Indicative/Deadline-Reads mit READ ONLY, beide explizit full_baseline_activated=false; Deadline qualified_b05=false und product_cutoff_status=UNVERIFIED. Quellen: [position_monitoring/service/runtime.py](../../backend/app/features/position_monitoring/service/runtime.py), [runner.py](../../backend/app/features/position_monitoring/service/runner.py), indicative_entry*.py, product_deadline_review*.py, [hebeltrader_b58_sources.py](../../backend/app/features/position_monitoring/service/hebeltrader_b58_sources.py); API `__init__.py`; [PositionDetails.tsx](../../frontend/src/features/operational_workspace/components/PositionDetails.tsx) / [IndicativeEntryObservation.tsx](../../frontend/src/features/operational_workspace/components/IndicativeEntryObservation.tsx) / [TradeAlertsPanel.tsx](../../frontend/src/features/alert/components/TradeAlertsPanel.tsx). Seit v1.5.52 liefert der bestehende Product-Owner getrennte Datumsrollen; ProductDeadlineInputs übernimmt sie in das gespeicherte product_evidence. maturity_on bleibt Produktende. Die Monitoringrouter und der Entry-DTO wurden dafür nicht erweitert; Original-/Parserbelege werden zusätzlich beim Product-Owner gelesen. |
 | Test / Commit | [tests/integration/backend/database/test_indicative_entry_v2_postgres.py](../../tests/integration/backend/database/test_indicative_entry_v2_postgres.py); [tests/integration/backend/database/test_indicative_entry_postgres.py](../../tests/integration/backend/database/test_indicative_entry_postgres.py); [tests/integration/backend/database/test_product_deadline_review_postgres.py](../../tests/integration/backend/database/test_product_deadline_review_postgres.py); [tests/unit/backend/features/position_monitoring/test_indicative_entry_read_migration.py](../../tests/unit/backend/features/position_monitoring/test_indicative_entry_read_migration.py); [frontend/src/features/operational_workspace/components/IndicativeEntryObservation.test.tsx](../../frontend/src/features/operational_workspace/components/IndicativeEntryObservation.test.tsx) Aktuelle Ausführung/Commitbindung: [Main-CI im Nachweisregister](#nachweisregister); kein neuer lokaler Anwendungstest. |
 | Fachliche Abnahme | V2 als ausdrückliche Alternative beauftragt; volle B01–B58-Baseline bleibt unverändert, B08 ausgeschlossen, B07 eigenständig. Technische Durchläufe ersetzen keine vollständige fachliche Depotabnahme. |
 | Software-Auslieferung | Im geprüften Main und veröffentlichten Tag v1.5.52 enthalten; konkrete Softwareauslieferung, keine dadurch erteilte Gesamtfachabnahme. |
 | Betriebsnachweis | PR [#367](https://github.com/burckhju/trading-workspace/pull/367), Nutzerbeleg 19.11.2026: v1.5.51/254f0bbd… installiert, vier Dienste healthy, Readiness 200/ready, Schema 20261118_0060. Audit 18:13:12 MEZ: V2-Zyklus 18:06:42–18:07:17 MEZ, 35,307 s, running=true, last_error=null; Review und Deadline je 6 bewertet/6 Datenprobleme/0 technische Positionsfehler. Kein eigener PC-Zugriff dieser Prüfung. Historische Ursache-/Liefernachweise aus [#368](https://github.com/burckhju/trading-workspace/pull/368) bleiben erhalten. Neuer [PC-Readback vom 22.11.2026](../reviews/DEPOT_DATA_READBACK_2026-11-22.md): v1.5.52/c7db441…, Schema0060, vier offene Positionen, regulärer V2-Zyklus mit 4/4 Einstands- und 4/4 Fristdatenproblemen bei jeweils null technischen Positionsfehlern. Getrennte Produktende-/Zahlungsrollen beobachtet; exakter Parserhead/Originalupgrade und konkreter Kalenderimport dadurch nicht vollständig nachgewiesen. Frühere Sechser-/Viererbefunde werden nicht über Kennungen hinweg gleichgesetzt. Späterer [P02-Read vom 24.11.2026](../reviews/P02_SOURCE_GAP_READBACK_2026-11-24.md): tatsächliches v1.5.54/9a5e59d…, Schema0060 und vier gesunde Dienste; historischer Timeout konkret, jüngeres `BELOW_ENTRY` mit Bid um 18:21:41 Uhr MEZ. Kein neuer Gesamtzyklus-/Inventar-/Fristnachweis. |
-| Restarbeit / nächste Abhängigkeit | **Aktuell 24.11.2026:** Gesamtread vom 22.11. und enger P02-Read vom 24.11. ausgewertet; tatsächliches v1.5.54 und gespeichertes P02-`BELOW_ENTRY` belegt. [Eine weitere tatsächlich offene Position versorgen](#naechster-schnitt) ist der einzige nächste Auftrag. Historische Kaufwährungen waren am 22.11. bei allen vier vorhanden; heutige Bindung der übrigen Positionen und weitere Produkt-/Quellen-/Kalender-/Fristlücken bleiben beim zuständigen Owner. **B04/B57/B58:** Produktionsregistry leer; eigener Original-BID und Statuszeit/-geltung samt realer Listinglieferung und Recovery sind nicht qualifiziert belegt. Ein neuer Feed braucht außerdem qualifizierten Adapter-/Zeitsemantikanschluss. **B05/B20:** V2 liefert nur getrennten begrenzten Fristreview; Exitlisting, letzter Handelstag, Folgekalender und individueller Produktschluss bleiben erforderliche Belege. **F207-2/B06:** historische Basiswerttrades zu beitragenden Käufen, ursprüngliche Ziele/Zieltreffer, vergleichbarer höchster Schutzboden, Bekanntgabe, Z1-Zählung, weitere Überwachung und Korrekturklärung bleiben offen. **F207-5:** vollständige gemeinsame Meldungsdarstellung, Zustands-/Versions-/Betriebsabnahme gesondert; Teilpfade ersetzen Gesamtumfang nicht. B07 separat, B08 ausgeschlossen. V1/V2 bleiben ausdrücklich freigegebene Alternativen mit eigener begrenzter Aussage, keine Lockerung der strengen Regeln. [Versorgungsnachweis vom 20.11.2026](../reviews/DEPOT_DATA_SUPPLY_2026-11-20.md) bindet sämtliche Datenanforderungen und Beschaffungsszenarien; keine neue Providerfreigabe oder Produktivänderung. Die weitere [Restabnahme](#monitoring-restabnahme) erhält die Abschlussgrenzen für diese Teilumfänge. |
+| Restarbeit / nächste Abhängigkeit | **Aktuell 24.11.2026:** Gesamt-, P02- und Quellenkandidatenreads ausgewertet; tatsächliches v1.5.54, P02-`BELOW_ENTRY` und drei weitere offene quellen-/produktblockierte Positionen belegt. [P01 für V2 versorgen](#naechster-schnitt) ist der einzige nächste Auftrag; isolierter passender gettex-Dateitreffer vorhanden. Historische Kaufwährungen waren am 22.11. bei allen vier vorhanden; heutige Bindung der übrigen Archivpositionen ist bestätigt; konkrete Einheits-/Mapping- sowie weitere Produkt-/Kalender-/Fristlücken bleiben beim zuständigen Owner. **B04/B57/B58:** Produktionsregistry leer; eigener Original-BID und Statuszeit/-geltung samt realer Listinglieferung und Recovery sind nicht qualifiziert belegt. Ein neuer Feed braucht außerdem qualifizierten Adapter-/Zeitsemantikanschluss. **B05/B20:** V2 liefert nur getrennten begrenzten Fristreview; Exitlisting, letzter Handelstag, Folgekalender und individueller Produktschluss bleiben erforderliche Belege. **F207-2/B06:** historische Basiswerttrades zu beitragenden Käufen, ursprüngliche Ziele/Zieltreffer, vergleichbarer höchster Schutzboden, Bekanntgabe, Z1-Zählung, weitere Überwachung und Korrekturklärung bleiben offen. **F207-5:** vollständige gemeinsame Meldungsdarstellung, Zustands-/Versions-/Betriebsabnahme gesondert; Teilpfade ersetzen Gesamtumfang nicht. B07 separat, B08 ausgeschlossen. V1/V2 bleiben ausdrücklich freigegebene Alternativen mit eigener begrenzter Aussage, keine Lockerung der strengen Regeln. [Versorgungsnachweis vom 20.11.2026](../reviews/DEPOT_DATA_SUPPLY_2026-11-20.md) bindet sämtliche Datenanforderungen und Beschaffungsszenarien; keine neue Providerfreigabe oder Produktivänderung. Die weitere [Restabnahme](#monitoring-restabnahme) erhält die Abschlussgrenzen für diese Teilumfänge. |
 | Umfangsentscheidung | Bestehende unnummerierte Fähigkeit behalten; keine FT-Nummer erfinden. Frühere reine Underlying-EOD-Aussage nicht auf sämtliche spätere Regeln verallgemeinern. |
 
 
@@ -2756,7 +2791,7 @@ ist noch kein Veröffentlichungs- oder PC-Installationsbeleg behauptet.
 | Fachliche Abnahme | Historisch freigegebener PC-Übergang ist laut Nutzerbeleg ausgeführt. Fachliche Depotabdeckung nicht abgenommen. |
 | Software-Auslieferung | Im geprüften Main und veröffentlichten Tag v1.5.52 enthalten; konkrete Softwareauslieferung, keine dadurch erteilte Gesamtfachabnahme. |
 | Betriebsnachweis | PR [#367](https://github.com/burckhju/trading-workspace/pull/367), Nutzerbeleg 19.11.2026: v1.5.51/254f0bbd… installiert, vier Dienste healthy, Readiness 200/ready, Schema 20261118_0060. Audit 18:13:12 MEZ: V2-Zyklus 18:06:42–18:07:17 MEZ, 35,307 s, running=true, last_error=null; Review und Deadline je 6 bewertet/6 Datenprobleme/0 technische Positionsfehler. Kein eigener PC-Zugriff dieser Prüfung. Historische Ursache-/Liefernachweise aus [#368](https://github.com/burckhju/trading-workspace/pull/368) bleiben erhalten. Neuer [PC-Readback vom 22.11.2026](../reviews/DEPOT_DATA_READBACK_2026-11-22.md): v1.5.52/c7db441…, Schema0060, vier offene Positionen, regulärer V2-Zyklus mit 4/4 Einstands- und 4/4 Fristdatenproblemen bei jeweils null technischen Positionsfehlern. Getrennte Produktende-/Zahlungsrollen beobachtet; exakter Parserhead/Originalupgrade und konkreter Kalenderimport dadurch nicht vollständig nachgewiesen. Frühere Sechser-/Viererbefunde werden nicht über Kennungen hinweg gleichgesetzt. Späterer [P02-Read vom 24.11.2026](../reviews/P02_SOURCE_GAP_READBACK_2026-11-24.md): tatsächliches v1.5.54/9a5e59d…, Schema0060 und vier gesunde Dienste; historischer Timeout konkret, jüngeres `BELOW_ENTRY` mit Bid um 18:21:41 Uhr MEZ. Kein neuer Gesamtzyklus-/Inventar-/Fristnachweis. |
-| Restarbeit / nächste Abhängigkeit | Vollständiger Collector und enge P02-Ergänzung sind erfolgreich ausgeführt und ausgewertet. **Einzige nächste Abhängigkeit:** [eine weitere offene Position für V2 versorgen](#naechster-schnitt); dafür zuerst die fehlenden aktuellen Coverage-/Kandidatenfakten archivgebunden lesen. Der vorhandene PC-Lesezugang genügt; Rohdaten bleiben privat. Kein App-Update oder erneuter P02-Read nötig. Neue Provider-/Kosten-/Produktiventscheidungen werden nur bei einem konkreten belegten Bedarf vorbereitet. Die dafür vorbereitete einzelne Datei mit `--source-coverage-from` ist der kleinste noch nötige einmalige Ownerexport; ausschließlich das vollständige ursprüngliche Archiv dient als Referenz, nicht das P02-Paket. |
+| Restarbeit / nächste Abhängigkeit | Gesamt-, P02- und Quellenkandidatenread sind erfolgreich ausgeführt und ausgewertet. **Einzige nächste Abhängigkeit:** [P01 für V2 versorgen](#naechster-schnitt). Ein passender historischer gettex-EUR/MUND-Bid ist isoliert belegt; Listing/Mapping, ausdrückliche Preiseinheit und frischer tatsächlicher PC-Verbraucherpreis fehlen. Kein erneuter unveränderter Diagnoseexport. Für die engste Originalprüfung ist der einmalige BNP-KID-Lesezugang nach automatischer Ablehnung zur ausdrücklichen Freigabe vorbereitet; alternativ genügt das schon gespeicherte Original. Quellen-/Kosten-/Produktiventscheidungen bleiben an konkrete Belege gebunden. |
 | Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
 
 </details>
@@ -2766,118 +2801,101 @@ ist noch kein Veröffentlichungs- oder PC-Installationsbeleg behauptet.
 
 
 <a id="naechster-schnitt"></a>
-## Einziger nächster Arbeitsauftrag — eine weitere offene Position für V2 versorgen
+## Einziger nächster Arbeitsauftrag — P01 für V2 versorgen
 
-**Ziel und erwartete Verbesserung:** Für eine weitere tatsächlich offene
-Position eine passende indikative Bidversorgung bis zum V2-Verbraucher
-herstellen oder den genau verbleibenden Daten-/Zugangsblocker eindeutig
-belegen. Ausgangskandidaten sind die am 22.11. ungebundenen **P01/P03/P04**;
-diese Archivlabels werden nicht auf die heutige Listenreihenfolge übertragen.
-Das Ziel ist eine zusätzliche beurteilbare Position, keine zugesicherte
-„2/4“-Quote bei unbekanntem aktuellem Gesamtbestand.
+**Ziel und erwartete Verbesserung:** Die weiterhin offene, archivgebundene
+P01 über den vorhandenen gettex-Pfad und eine belegte Preiseinheit bis zu
+einem tatsächlich verwendbaren V2-Input führen. Ein passender positiver
+EUR/MUND-Bid ist in einer offiziellen Datei bereits konkret nachgewiesen.
+Das Ziel ist eine zusätzliche beurteilbare Position; eine aktuelle
+Gesamtquote wird ohne passende Gesamtinventur nicht zugesichert.
 
-**Betroffene Daten und Regeln:** aktuelle offene Position und ihre
-Ausführungs-/Restmengenbasis; exakte Produkt-/Listing-/Währungsidentität;
-gespeicherte Quellenauswahl, Kandidaten, Konfiguration und Ausschlussgründe;
-Bid samt Originalzeit oder ausdrücklich unbekannter Originalzeit,
-Empfangszeit und zulässigem Quellenmodus; vergleichbare Produkteinheit,
-richtiger Basiswert und benötigte Sitzungen. Verbraucher ist die
-freigegebene indikative Einstandsprüfung V2. Strenge B04/B57/B58-,
-Produktfrist- und B06-Voraussetzungen bleiben getrennt offen.
+**Abgeschlossener Fortschritt:** P01/P03/P04 sind aktuell gelesen und
+zugeordnet. Fehlende Routen und Auswahlkandidaten sind belegt; KID-Beschaffung
+ist erfolgreich. P01/P03 haben einen nutzbaren V2-Referenzkalenderpfad, aber
+keine belegte Preiseinheit. P04 hat zusätzliche Identitäts-/Kalenderlücken.
+Die isolierte gettex-Dateiprobe enthält P01, P03/P04 nicht in diesem Fenster.
+[Belege und exakte Grenzen](../reviews/DEPOT_SOURCE_COVERAGE_READBACK_2026-11-24.md).
+Keine erneute unveränderte Sammlung gehört zum nächsten Schritt.
 
-**Vorhandene Komponenten und konkrete Änderungen in diesem einen Schnitt:**
+**Betroffene Daten und Regeln:** P01-Produkt-/MUND-Listing-/EUR-Bindung,
+validiertes Mapping und Quellenauswahl, positiver Bid mit unveränderter
+Originalquellenzeit und Empfangszeit, dokumentierte aktuelle Preiseinheit,
+vorhandene Ausführungs-/Restmengenbasis und Sitzungszählung. Verbraucher
+ist `indicative-entry-review-v2`, Quellenmodus `DELAYED_SOURCE_BID`.
+B04/B57/B58, Produktfristen und B06 bleiben getrennte Anforderungen.
 
-1. Die alte Identität gegen die heutige offene Inventur binden. Dazu die
-   bestehenden passiven GETs `/api/v1/market-data/positions/quote-coverage`
-   und `/api/v1/market-data/warrants/quote-coverage` verwenden. Der zweite
-   liefert beim vorhandenen `QuoteCoverageService` bestehende Routen,
-   Mappingzustand, Quotes und aktuelle Konfiguration. Discoverygründe
-   stammen nur aus aktuellen Frankfurt-/Vontobel-Mappingjobs, nicht aus
-   vollständiger persistierter Discoveryhistorie. Beide GETs enthalten
-   nur offene Positionen/Produkte; fehlt ein Archivkandidat, seinen
-   gespeicherten Trade-/Positionzustand gezielt auf `closed_at`/
-   `cancelled_at` lesen oder „nicht mehr eindeutig zuordenbar“ ausweisen.
-2. Da hier kein PC-Direktzugang besteht, denselben eigenständigen
-   [Collector](../../scripts/collect-depot-data-supply.py) um eine eng
-   archivgebundene Sammlung dieser fehlenden Coverage-Fakten ergänzen.
-   Sie liest die vorhandenen Ownerprojektionen, aktuelle gespeicherte
-   V2-/Produktbereitschaft und gezielt
-   `PositionQuoteSourceSelectionModel.evidence`: die persistierten
-   `verified_candidates`/`allowed_candidates`/`eligible_candidates`
-   fehlen in beiden GET-DTOs. Dafür einen reinen, gebundenen SELECT nutzen;
-   leere Runtimegründe nicht als früheren Discoveryfehler behandeln.
-   Kein neuer API-Endpoint, keine Wiederholung
-   der gesamten alten Diagnose. **Der ergänzte Modus ist als
-   `--source-coverage-from` im Arbeitsbranch vorbereitet; der tatsächliche
-   PC-Read steht noch aus.** Der vorhandene `--source-gap-from`-Modus setzt eine
-   bestätigte Route voraus und ist für die ungebundenen Kandidaten ungeeignet.
-   Passiver DB-Fallback nur ausdrücklich `READ ONLY`, ohne Sperren;
-   `PositionQuoteSourceSelectionRepository.active_for_position()` verwendet
-   `FOR UPDATE` und darf dafür nicht aufgerufen werden.
-3. Aus dem gebundenen Bestand genau eine weiter offene Position mit
-   konkret schließbarer Lücke wählen. Beim bestehenden Market-Data-Owner
-   `QuoteCoverageService`, Discovery, Mappingadministration,
-   Providereligibilität und `PositionQuoteSourceSelector` verwenden;
-   beim Product-Owner `ProductReviewEvidenceReader`/`ProductReviewReadiness`
-   für belegte Identität und Einheit. Nur die tatsächlich nachgewiesene
-   fehlende Zuordnung, vorhandene Konfiguration oder einmalige Original-
-   ergänzung korrigieren. Ein vorhandener ausgewählter Pfad wird nicht
-   still gewechselt. Reguläre Refresh-/Pacing-/Backoffwege weiterverwenden.
-4. Nach der regulären Verarbeitung die gespeicherte Quote und das
-   tatsächliche V2-Assessment derselben Position nachlesen. Ein vorliegender
-   Preis ohne Verbraucherwirkung reicht nicht. Wenn Rechte, Quelldaten,
-   Produktidentität oder eine fachliche Festlegung blockieren, die exakt
-   fehlende Information und die vorbereitete Bezugs-/Entscheidungsoption
-   dokumentieren, statt einen zusätzlichen technischen Umbau zu vermuten.
+**Vorhandene Komponenten und konkrete Arbeit in diesem einen Schnitt:**
 
-**Benötigte Zugänge oder Entscheidungen:** Für den einmaligen engen
-Export genügt der vorhandene lokale Backend-/DB-Lesezugang; private
-Bindungen bleiben im Paket. Vorhandene Quellenfreigaben gelten in ihrem
-belegten Umfang. Ein neuer Anbieterzugang, kostenpflichtige Beschaffung,
-unklare Identitätskorrektur oder zusätzliche Produktiventscheidung wird
-erst mit konkreter Quelle, betroffener Position, Feldabdeckung und Kosten
-zur Entscheidung vorbereitet. Für den bereits ausgewerteten P02-Befund
-ist kein neuer Export, App-Update oder Ersatzprovider erforderlich.
+1. P01-Original auf seine ausdrückliche Preis-/Stücknotierung prüfen.
+   Falls `extract_kid_text` eine belegte Formulierung übersieht, einen engen
+   Parserfix mit Originalregression und neuer Parserrevision vorbereiten;
+   der vorhandene `reparse_saved_original_kid`-Pfad übernimmt die gespeicherten
+   Originalbytes unverändert in eine neue Ownerrevision. Wenn das KID diese
+   Feldklasse nicht belegt, einen passenden originalen Listing-/Termsbeleg
+   für den Product-Owner qualifizieren. Keine Einheitsannahme aus Produkttyp,
+   Bezugsverhältnis, Währung oder Kostenbeispielen.
+2. Beim vorhandenen Product-Owner das konkrete MUND-Listing lesen
+   (`GET /api/v1/warrants/{warrant_id}/listings`). Ein fehlendes Listing nur
+   mit passendem Produkt-/MIC-/Währungsbeleg über `WarrantService.add_listing`
+   ergänzen. `configure_gettex_warrant` zunächst ohne `--apply` verwenden;
+   es verlangt genau ein aktives Listing und legt selbst keines an.
+   Die feste Workspace-/Produktbindung vor jeder Anwendung gegen das
+   private P01-Archiv prüfen. Die produktive Zuordnung erst mit konkreter
+   überprüfter Vorschau und erforderlicher Datenfreigabe durchführen.
+3. Die bestätigte Route über bestehende Mappingadministration und
+   `PositionQuoteSourceSelector` anbinden; regulären Refresh, gemeinsamen
+   Dateicache, Backoff und gespeicherte Quoteweitergabe weiterverwenden.
+   Die beobachtete Datei umfasst rund 657 MB. Der regelmäßige Abruf muss
+   mit Bandbreite, Zeit- und Speichergrenzen des PCs vereinbar sein;
+   keine eigene tägliche technische Handarbeit als Dauerlösung.
+4. Nach regulärer Verarbeitung den gespeicherten P01-V2-Input und Entscheid
+   lesen: gleiche Identität, positiver Bid, passende Einheit, Quellenalter
+   und Sitzungen. Eine erreichbare Datei oder ein laufender Runner allein
+   erfüllt die Abnahme nicht.
+
+**Jetzt benötigter Zugang / konkrete Entscheidung:** Der einmalige lesende
+Abruf des offiziellen P01-KID von `kid.bnpparibas.com` ist vorbereitet.
+Dabei würde ausschließlich die Produktkennung übermittelt. Die automatische
+Freigabeprüfung hat diese Übermittlung wegen fehlender ausdrücklicher
+Offenlegungsfreigabe abgelehnt. Deshalb ist genau diese Zustimmung erforderlich;
+alternativ kann das bereits gespeicherte P01-KID privat bereitgestellt werden.
+Das ist keine neue Providerfreigabe, Bestellung oder produktive Änderung.
+Die vorhandene gettex-Konfiguration bleibt in ihrem belegten Nutzungsumfang;
+kein bezahlter Ersatzanbieter wird ohne konkrete Abdeckungs-/Kostenentscheidung
+beschafft. Ein neuer PC-Diagnoseexport ist für die bisherigen Ursachen unnötig.
 
 **Überprüfbare Abnahmekriterien:**
 
-- Die Archivkandidaten sind als heute offen/geschlossen/storniert/anders
-  gebunden beziehungsweise ausdrücklich nicht mehr eindeutig zuordenbar
-  eindeutig aufgelöst; jede weiter untersuchte Route besitzt konkrete
-  gespeicherte Kandidaten- und Ausschlussgründe. Ein fehlender Zugang wird
-  nicht als fehlender Kurs ausgegeben.
-- Für die ausgewählte Position ist die Kette Quelle → Abruf → Mapping →
-  Speicherung → Qualitätsprüfung → V2-Entscheid durch Zeit-/Versionsbezüge
-  nachvollziehbar. Produkt, Listing, Währung und Preiseinheit passen.
-- Entweder liegt ein tatsächlich auswertbarer V2-Entscheid vor, mit
-  positivem Bid und erfülltem bestehenden Quellenvertrag — bei der
-  zugelassenen zeitunbekannten Emittentenindikation Empfangsalter
-  **≤300 s** —, oder jedes noch sperrende Pflichtfeld samt konkretem
-  Ausschluss-/Zugangsgrund ist belegt. Das Ergebnis verbessert die
-  Verbraucherabdeckung oder die zuvor unbekannte Ursachenlage.
-- Originalkurszeit und Empfang bleiben getrennt. Gleiche Portalwerte,
-  ein erreichbarer Endpoint, `monitoring_usable`, ein laufender Runner
-  oder ein erfolgreicher HTTP-Abruf ersetzen keine Regelqualifikation.
-  B58 bleibt separat beurteilt; die Gesamtquote wird nur mit passender
-  aktueller Inventur ausgewiesen.
-- Der öffentliche Nachweis enthält nur technische/pseudonymisierte
-  Befunde; private Depotwerte, Produktkennungen und Zugangsdaten bleiben
-  geschützt. Einmalige Ergänzung und verbleibender laufender Pflegeaufwand
-  werden ausdrücklich unterschieden.
+- Product-Evidenz für P01 enthält eine aus dem gebundenen Original belegte
+  Einheit `CURRENCY_PER_WARRANT`, passende EUR-/Produkt-/Basiswertbindung
+  und `AVAILABLE`; oder die exakt fehlende Originalfeldklasse samt geprüftem
+  Beschaffungsweg ist eindeutig nachgewiesen. Ein Reparse erhält
+  ursprünglichen Abrufzeitpunkt, Hash und unveränderliche Revisionshistorie.
+- Genau eine passende aktive P01-MUND-Route ist belegt, validiert und ausgewählt.
+  Vorhandene widersprüchliche oder mehrdeutige Listings werden nicht geraten
+  beziehungsweise automatisch überschrieben.
+- Der tatsächliche V2-Verbraucher erhält einen positiven Bid und
+  `source_quote_at` mit **0 bis einschließlich 1800 s** Alter, nicht künftig;
+  Empfang bleibt separat. Produktmaßstab und mindestens 20 abgeschlossene
+  Basiswertsitzungen passen zum Quellenereignis im freigegebenen V2-Modus.
+- Eine neue gespeicherte Bewertung ist fachlich auswertbar, oder jedes noch
+  sperrende Pflichtfeld mit konkretem Quellen-/Zugangsgrund dokumentiert.
+  Alte Probedaten, technische Transporterfolge oder pauschale Erfolgsflags
+  ersetzen diesen Nachweis nicht. Die heutige historische Datei wird nicht
+  als aktuelle Quote importiert.
+- Automatischer Wiederanlauf und Ausfall-/Alterserkennung bleiben beim
+  vorhandenen Owner; keine dauerhafte tägliche manuelle technische Pflege.
+  B58-Original-BID-Zeit/Status, historische Strenge, Fristen und B06 werden
+  durch diesen begrenzten V2-Schritt nicht als erfüllt ausgegeben.
+- Öffentliche Belege enthalten nur erforderliche technische Zusammenfassungen;
+  Depotwerte, Kennungen, individuelle Produkt-URLs und Originaldaten bleiben privat.
 
-**Bereitgestellter Fortschritt:** Die einzelne Collector-Datei ergänzt die
-fehlenden vorhandenen Datenfelder. Der [Umsetzungsnachweis](../reviews/DEPOT_SOURCE_COVERAGE_COLLECTOR_2026-11-24.md)
-führt technische Qualifikation und unveränderte Altpfade. Durch die neue
-Datei allein entsteht keine zusätzliche Regelabdeckung.
-
-**Arbeitsstatus:** Technical Review — enger Quellenkandidaten-Collector
-implementiert und gezielt qualifiziert; Analysis — heutige Zielbindungen
-und tatsächliche Versorgung der weiteren Position noch nicht beobachtet.
-**Jetzt genau erforderlich:** den vorbereiteten Modus einmal mit dem
-ursprünglichen vollständigen Archiv auf dem bestehenden PC ausführen und
-das private Ergebnis auswerten. Eine konkrete Mapping-/Produkt-/
-Quellenkorrektur folgt erst aus diesen Fakten. Vorhandene Owner bleiben
-zuständig; kein neuer Provider- oder Regelumfang wird freigegeben.
+**Arbeitsstatus:** Observed — Quellenkandidatenread und konkrete historische
+P01-gettex-Quellendeckung; Analysis — Originaleinheit und produktive P01-
+Listing-/Mapping-/Verbraucherabnahme. Die reine Collectorfertigstellung ist
+abgeschlossen. Zuständige Owner bleiben Product, Market Data und Position
+Monitoring; kein neuer Regelumfang wird freigegeben.
 
 <details>
 <summary>Abgeschlossener enger P02-Auftrag vom 22.–24.11.2026</summary>

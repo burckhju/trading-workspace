@@ -22,17 +22,18 @@ liest vorhandene Positionen und gespeicherte Prüfgründe, ohne einen
 Kursabruf oder Regellauf auszulösen. Der [einzelne Diagnosecollector](scripts/collect-depot-data-supply.py)
 kann außerhalb des installierten Checkouts laufen und liefert ein privates
 Archiv einschließlich tatsächlicher Installations- und DB-Schemabelege.
-Der vollständige Readback und die [enge passive P02-Ergänzung vom
-24.11.2026](docs/reviews/P02_SOURCE_GAP_READBACK_2026-11-24.md) liegen vor.
-Archivierte Bewertungsinputs und heutiger Journalbestand sind getrennt
-ausgewertet. Ein erneuter P02-Export ist für diese Ursachenklärung nicht
-erforderlich; die übrigen Positionen wurden mit dem neuen Paket nicht gelesen.
-Für die zuvor ungebundenen Kandidaten ergänzt derselbe Collector den
-[gezielten Quellenkandidatenread](docs/technical/ISSUER_MONITORING_OPERATIONS.md#gezielter-quellenkandidatenread).
-Er verbindet vorhandene Coverage-GETs mit gespeicherten Auswahl-, Produkt-
-und Bewertungsfakten. Der [Umsetzungsnachweis](docs/reviews/DEPOT_SOURCE_COVERAGE_COLLECTOR_2026-11-24.md)
-trennt technische Qualifikation und den noch erforderlichen tatsächlichen
-PC-Read; neue Datenabdeckung ist daraus noch nicht abgeleitet.
+Der vollständige Readback, die [enge P02-Ergänzung](docs/reviews/P02_SOURCE_GAP_READBACK_2026-11-24.md)
+und der [Quellenkandidatenread vom 24.11., 20:33 Uhr MEZ](docs/reviews/DEPOT_SOURCE_COVERAGE_READBACK_2026-11-24.md)
+liegen vor. P01/P03/P04 sind weiterhin offen, ohne ausgewählte Quotequelle
+und ohne Mappingrouten. KIDs wurden erfolgreich beschafft; Preiseinheiten
+fehlen, bei P04 zusätzlich Basiswert-/Kalenderklärung. Eine separate vollständig
+gelesene offizielle gettex-Datei enthält einen passenden EUR/MUND-Bid für P01;
+dieser historische Quellennachweis ist noch kein aktueller PC-Verbraucherpreis.
+Der [eine nächste Auftrag](docs/planning/PRODUCT_BACKLOG.md#naechster-schnitt)
+konkretisiert deshalb P01: Listing/Mapping, belegte Einheit und frischer V2-Bid.
+Weitere unveränderte Gesamt-, P02- oder Kandidatenexporte sind dafür nicht
+erforderlich. Der [Collector-Nachweis](docs/reviews/DEPOT_SOURCE_COVERAGE_COLLECTOR_2026-11-24.md)
+erhält die technischen Prüfungen und ihre eigenen CI-Grenzen.
 
 | Orientierung | Maßgebliche Quelle |
 |---|---|

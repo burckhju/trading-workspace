@@ -1,16 +1,18 @@
 # Traceability – aktueller Nachweiseinstieg
 
-> **Gezielte Fortsetzung am 24.11.2026:** Der
-> [Quellenkandidaten-Collector](../reviews/DEPOT_SOURCE_COVERAGE_COLLECTOR_2026-11-24.md)
-> ergänzt die im bisherigen Read nicht ausgegebenen Auswahlkandidaten
-> und aktuellen Produkt-/Bewertungsfakten für die archivierten ungebundenen
-> Positionen. Der Originalarchiv-Abgleich ist tatsächlich geprüft; eine
-> neue Ausführung auf deren PC-Bestand liegt noch nicht vor. Die
-> [Betriebsanleitung](../technical/ISSUER_MONITORING_OPERATIONS.md#gezielter-quellenkandidatenread)
-> verwendet denselben eigenständigen Collector. Arbeitsstatus und genau
-> ein aktueller Auftrag bleiben ausschließlich im Backlog.
+> **Neuester gebundener Betriebsnachweis, 24.11.2026, 20:33 Uhr MEZ:** Der
+> [Quellenkandidatenread](../reviews/DEPOT_SOURCE_COVERAGE_READBACK_2026-11-24.md)
+> bestätigt P01/P03/P04 als offen, gleiche Installation v1.5.54/9a5e59d…,
+> fehlende Mappingrouten und leere Auswahlkandidaten. Aktuelle KIDs sind
+> erfolgreich beschafft, aber ohne belegte Preiseinheit; P04 hat zusätzlich
+> einen Basiswertkonflikt und keine V2-Referenzkalenderdeckung. Die getrennte
+> gettex-Originaldateiprobe belegt einen EUR/MUND-Bid für P01 im untersuchten
+> historischen Fenster, keinen aktuellen PC-Quote oder neuen V2-Entscheid.
+> Der [Collector-Nachweis](../reviews/DEPOT_SOURCE_COVERAGE_COLLECTOR_2026-11-24.md)
+> trennt technische Qualifikation, CI-Korrektur und tatsächlichen Read.
+> Arbeitsstatus und genau ein aktueller P01-Auftrag bleiben im Backlog.
 
-> **Neuester enger Betriebsnachweis, 24.11.2026:** Der
+> **Vorheriger enger Betriebsnachweis, 24.11.2026, 18:23 Uhr MEZ:** Der
 > [P02-Readback](../reviews/P02_SOURCE_GAP_READBACK_2026-11-24.md) bestätigt
 > die tatsächliche Installation von **v1.5.54/9a5e59d…**, Schema0060 und
 > vier gesunde Dienste. Historischer Gap: `JPMORGAN_SNAPSHOT_TIMEOUT`;
@@ -39,7 +41,7 @@
 | Feld | Nachweisstand |
 |---|---|
 | Erstprüfung | 19.11.2026, Beginn 19:31:38 Uhr MEZ / 18:31:38 UTC, auf v1.5.51 |
-| Fortschreibung | 24.11.2026: enger P02-Verbraucherread, tatsächliche Installation und PR-CI auf 41a0cf80… ergänzt; Gesamtinventur vom 22.11. und Produkt-/CI-Prüfung vom 20.11. behalten ihre eigenen Grenzen |
+| Fortschreibung | 24.11.2026: P02-Read, späterer Quellenkandidatenread für drei archivierte Positionen und getrennte gettex-Originaldateiprobe; aktuelle Installation v1.5.54 bestätigt. Gesamtinventur vom 22.11. und datierte CI-/Produktbelege behalten ihre eigenen Grenzen |
 | Geprüfte Produktbasis | `c7db441de36297a98d47cdf28c64b4e5d9994692` / v1.5.52 für den ursprünglichen Datenvertrag und die unten datierten Main-Tests; relevante Provider-/Market-Data-/V2-Pfade bis 9a5e59d… unverändert |
 | Aktueller Main und getrennt belegter PC | `9a5e59dac3bb219cbc40641e62e75871eb2ed131`, `VERSION=1.5.54`, Merge #373 vom 22.11.2026, 21:35:28 Uhr MEZ; dieselbe tatsächliche PC-Installation im privaten Paket vom 24.11. vor/nach geprüft |
 | Früherer Dokument-Main | `6c0f9160b91bee4c6c45849c9c47d4c4b5a3bf56`, Merge #369 vom 20.11.2026, 15:01:45 Uhr MEZ; historische reine Dokumentkonsolidierung |

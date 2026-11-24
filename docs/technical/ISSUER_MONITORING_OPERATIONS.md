@@ -446,6 +446,14 @@ halten Vorbereitung und tatsächliches PC-Ergebnis getrennt.
 <a id="gezielter-quellenkandidatenread"></a>
 ### Einmaliger Quellenkandidatenread nach vollständigem Archiv
 
+**Ausgeführt und ausgewertet am 24.11., 20:33 Uhr MEZ:** Der
+[Readback](../reviews/DEPOT_SOURCE_COVERAGE_READBACK_2026-11-24.md) bindet
+P01/P03/P04 und ihre konkreten Quellen-/Produktblocker. Für diesen Befund
+ist keine Wiederholung erforderlich. Der folgende Aufruf bleibt die
+dokumentierte Wiederherstellungsanleitung des verwendeten Modus;
+der [aktuelle Auftrag](../planning/PRODUCT_BACKLOG.md#naechster-schnitt)
+betrifft jetzt die konkret belegte P01-Versorgung.
+
 Der Modus `--source-coverage-from` liest die heutigen gespeicherten Fakten
 zu den **im ursprünglichen vollständigen Archiv noch nicht ausgewählten**
 Positionen. Im gelieferten Referenzbestand sind dies P01/P03/P04; P02
@@ -477,7 +485,7 @@ Bewertungsinputs sowie aktuelle Product-/Beschaffungs-/KID-Metadaten.
 Er führt keine neue Auswahl, Dokumentbeschaffung oder V2-Bewertung aus.
 Originaldokumente, Providerzugangsdaten und komplette Logs werden nicht
 gesammelt. Die [Qualifikation und genauen Grenzen](../reviews/DEPOT_SOURCE_COVERAGE_COLLECTOR_2026-11-24.md)
-bleiben von einem späteren tatsächlichen PC-Read getrennt.
+bleiben vom inzwischen vorliegenden tatsächlichen PC-Read getrennt.
 
 `source-coverage-private.json` enthält die Zielbefunde; Installation,
 Schema und Zusammenfassung liegen separat im selben privaten Paket.

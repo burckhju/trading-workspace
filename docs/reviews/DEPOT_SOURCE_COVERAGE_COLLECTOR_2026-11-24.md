@@ -1,5 +1,12 @@
 # Gezielte Quellenkandidaten-Diagnose für bisher ungebundene Positionen
 
+**Späterer Betriebsbeleg:** Der Collector wurde am **24.11.2026,
+20:33:55–20:33:58 Uhr MEZ** erfolgreich auf dem PC ausgeführt. Der
+[gesonderte Readback](DEPOT_SOURCE_COVERAGE_READBACK_2026-11-24.md) enthält
+die tatsächlichen Quellen-/Produktbefunde und eine getrennte gettex-Dateiprobe.
+Die folgenden Vorbereitungs- und Testabschnitte behalten ihren historischen
+Geltungsbereich; eine erneute Sammlung wird dadurch nicht angefordert.
+
 ## Zweck und Nachweisgrenze
 
 Der [enge P02-Readback](P02_SOURCE_GAP_READBACK_2026-11-24.md) ist ausgewertet.
@@ -15,9 +22,9 @@ ursprüngliche vollständige Diagnosearchiv als Identitätsreferenz. Der
 engere P02-Export ist kein gültiges Referenzarchiv dieses Modus. Ein neues
 App-Release oder ein installierter PR-370-Resolverfix ist nicht erforderlich.
 
-Geprüfter Main und zuletzt tatsächlich nachgewiesener PC-Stand sind
+Beim damaligen Vorbereitungsstand waren Main und belegter PC-Stand
 `9a5e59dac3bb219cbc40641e62e75871eb2ed131` / v1.5.54. Die PC-Bestätigung
-stammt weiterhin aus dem P02-Paket vom **24.11., 18:23:08–18:23:10 Uhr MEZ**;
+stammte aus dem P02-Paket vom **24.11., 18:23:08–18:23:10 Uhr MEZ**;
 dieser Entwicklungsschnitt ist kein neuer Betriebsread. Die vier regulären
 CI-Läufe des vorherigen Arbeitsstands `40a9811476dbecfeaec2577dde9f8812caa16bf4`
 sind inzwischen erfolgreich:
@@ -177,11 +184,17 @@ Der gezielte pytest-Lauf mit `backend/pyproject.toml` meldet
 **56 passed, 87 subtests passed in 1.57s**, ohne Skips oder Warnungen.
 Frontend, End-to-End und Version auf cdfea27a sind erfolgreich; der
 korrigierte Arbeitsstand benötigt seinen eigenen regulären CI-Nachweis.
+Im [nachfolgenden Backend-Lauf auf 10d853d3](https://github.com/burckhju/trading-workspace/actions/runs/45472331717)
+sind Ruff, Black, mypy, Migration, Recovery- und Originalupgrade-/Datums-
+qualifikation inzwischen erfolgreich. Renderer- und umask-Jobs sind ebenfalls
+erfolgreich; `Tests with coverage` läuft beim Statusread noch. Der frühere
+Importblocker ist damit in tatsächlicher CI überwunden, ohne den noch offenen
+Gesamtabschluss vorwegzunehmen.
 
-Hier besteht kein interaktiver Zugang zum privaten PC. Deshalb ist der
-kleinste noch nötige tatsächliche Beleg genau dieser einmalige gebundene
-Export auf der bestehenden Installation. Erst daraus folgt eine begründete
-Korrektur an einer weiteren Position oder eine konkrete fehlende Quelle,
-Zugangsentscheidung beziehungsweise Produktinformation. Der
+Hier besteht kein interaktiver Zugang zum privaten PC. Der deshalb vorbereitete
+einmalige gebundene Export ist inzwischen geliefert und
+[ausgewertet](DEPOT_SOURCE_COVERAGE_READBACK_2026-11-24.md). Die zuvor offene
+Quellenkandidatenfrage ist damit beantwortet; notwendige Quellen-/Produkt-
+ergänzungen folgen aus den beobachteten Fakten. Der
 [Betriebsaufruf](../technical/ISSUER_MONITORING_OPERATIONS.md#gezielter-quellenkandidatenread)
 und die Abnahmekriterien im Backlog gehören zu demselben Auftrag.

@@ -1,5 +1,17 @@
 # Emittentenquellen, Abrufrechte, Kosten und B58 — 20.11.2026
 
+**Spätere praktische Ergänzung vom 24.11.:** Der
+[Quellenkandidatenread und die gettex-Dateiprobe](DEPOT_SOURCE_COVERAGE_READBACK_2026-11-24.md)
+belegen einen passenden EUR/MUND-Bid für P01 in einer vollständig geprüften
+offiziellen Originaldatei. gettex-Angebot und private Downloadbedingungen
+wurden erneut gelesen. Das ist konkrete historische Produktdeckung;
+Listing/Mapping, Preiseinheit und frischer PC-Verbraucherinput bleiben offen.
+Die rund 657 MB große Einzeldatei macht Bandbreite/Taktung zu einer eigenen
+Betriebsbedingung. P03/P04 fehlen nur in diesem Fenster; keine allgemeine
+Nichtabdeckung und keine vollständige B58-Qualifikation abgeleitet.
+Die nachfolgende Neun-Emittenten- und Tarifübersicht behält ihren Prüfstand
+vom 20.11.; andere Angebote wurden dadurch nicht neu verifiziert.
+
 ## Ergebnis und Prüfgrenze
 
 Für alle neun angefragten Emittentengruppen gibt es konkrete öffentliche
