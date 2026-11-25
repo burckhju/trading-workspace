@@ -47,6 +47,7 @@ from app.features.position_monitoring.service.hebeltrader_original_bid_sessions 
     empty_period,
     read_period,
 )
+from app.features.product.domain.listing_unit_evidence import ListingUnitRoute
 from app.features.product.domain.price_scale_evidence import ProductPriceScaleCurrent
 from app.features.product.service.application import WarrantService
 from app.features.product.service.price_scale_evidence import (
@@ -595,7 +596,23 @@ async def read_indicative_inputs(
         )
 
         current_unit = await ProductReviewEvidenceReader(session).current_for_review(
-            workspace_id=workspace_id, warrant_id=trade.product_id, known_at=now
+            workspace_id=workspace_id,
+            warrant_id=trade.product_id,
+            known_at=now,
+            listing_unit_route=(
+                ListingUnitRoute(
+                    listing_id=saved.route.warrant_listing_id,
+                    provider=saved.provider,
+                    venue_mic=saved.route.venue_mic,
+                    currency=saved.route.currency,
+                )
+                if saved.route is not None
+                and saved.provider == "GETTEX_DELAYED"
+                and saved.route.venue_mic == "MUND"
+                and saved.route.currency == "EUR"
+                else None
+            ),
+            listing_unit_event_at=quote.original_bid_at or quote.source_quote_at or now,
         )
     scale, scale_problems = _scale(
         basis,

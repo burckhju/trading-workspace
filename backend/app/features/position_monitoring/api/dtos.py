@@ -172,6 +172,9 @@ class QuoteSourceAttemptResponse(BaseModel):
     reference_price_type: str | None = None
     currency: str | None = None
     refresh_error: str | None = None
+    retained: bool = False
+    provider_reason: str | None = None
+    quote_time_basis: str | None = None
 
 
 class ProductPositionValuationResponse(BaseModel):

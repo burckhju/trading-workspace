@@ -151,6 +151,9 @@ export interface QuoteSourceAttemptResponse {
   reference_price_type?: string | null;
   currency?: string | null;
   refresh_error?: string | null;
+  retained?: boolean;
+  provider_reason?: string | null;
+  quote_time_basis?: string | null;
 }
 
 export interface PositionValuationBasis {

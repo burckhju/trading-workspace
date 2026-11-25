@@ -3,6 +3,7 @@
 import hashlib
 from dataclasses import asdict
 from datetime import UTC, datetime
+from typing import Any, Literal
 from uuid import UUID, uuid4
 
 from pydantic import TypeAdapter
@@ -10,6 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.market.persistence.models import IssuerModel, UnderlyingModel
+from app.features.product.domain.listing_unit_evidence import ListingUnitRoute
 from app.features.product.domain.price_scale_evidence import (
     ProductPriceScaleBinding,
     aware,
@@ -335,6 +337,8 @@ class ProductReviewEvidenceReader:
         workspace_id: UUID,
         warrant_id: UUID,
         known_at: datetime,
+        listing_unit_route: ListingUnitRoute | None = None,
+        listing_unit_event_at: datetime | None = None,
     ) -> ProductReviewEvidence:
         row, binding, facts, problems = await self._facts(
             workspace_id=workspace_id, warrant_id=warrant_id, known_at=known_at
@@ -351,6 +355,87 @@ class ProductReviewEvidenceReader:
             "PRODUCT_REVIEW_UNIT_UNPROVEN",
             "PRODUCT_DOCUMENT_UNDERLYING_AMBIGUOUS",
         }
+        unit = facts.unit if facts else None
+        unit_source_kind: Literal["KID_ORIGINAL", "LISTING_ORIGINAL"] | None = (
+            "KID_ORIGINAL" if unit == "CURRENCY_PER_WARRANT" else None
+        )
+        if (
+            listing_unit_route is not None
+            and facts is not None
+            and facts.currency is not None
+            and facts.currency != listing_unit_route.currency
+        ):
+            conflict = "LISTING_UNIT_KID_CURRENCY_MISMATCH"
+            reasons.append(conflict)
+            hard_problems.add(conflict)
+        listing_unit = None
+        # This source can close only a missing unit. Keep the current KID's
+        # identity, currency, terms and independent hard contradictions intact.
+        # An explicitly different KID unit is never replaced by a listing rule.
+        if (
+            listing_unit_route is not None
+            and row is not None
+            and binding is not None
+            and facts is not None
+            and facts.unit is None
+            and facts.currency is not None
+            and facts.currency == listing_unit_route.currency
+            and not problems
+        ):
+            from app.features.product.service.listing_unit_evidence import (
+                ListingUnitEvidenceReader,
+            )
+
+            listing_unit = await ListingUnitEvidenceReader(self._session).current(
+                workspace_id=workspace_id,
+                warrant_id=warrant_id,
+                route=listing_unit_route,
+                known_at=known_at,
+                event_at=listing_unit_event_at,
+            )
+            reasons.extend(listing_unit.reasons)
+            if listing_unit.status == "AVAILABLE":
+                if (
+                    listing_unit.workspace_id != workspace_id
+                    or listing_unit.warrant_id != warrant_id
+                    or listing_unit.route != listing_unit_route
+                    or listing_unit.known_at != known_at
+                    or listing_unit.event_at != (listing_unit_event_at or known_at)
+                    or listing_unit.reasons
+                    or listing_unit.binding is None
+                    or listing_unit.binding.product != binding
+                    or listing_unit.binding.route != listing_unit_route
+                    or listing_unit.current_kid_revision_id != row.id
+                    or listing_unit.unit != "CURRENCY_PER_WARRANT"
+                    or listing_unit.currency != facts.currency
+                    or listing_unit.quality != "CURRENT_UNIT_HISTORY_ASSUMED"
+                ):
+                    mismatch = "PRODUCT_REVIEW_LISTING_UNIT_BINDING_MISMATCH"
+                    reasons.append(mismatch)
+                    hard_problems.add(mismatch)
+                else:
+                    unit = listing_unit.unit
+                    unit_source_kind = "LISTING_ORIGINAL"
+                    reasons.remove("PRODUCT_REVIEW_UNIT_UNPROVEN")
+            elif listing_unit.status == "UNSUITABLE":
+                invalid_reasons = listing_unit.reasons or (
+                    "PRODUCT_REVIEW_LISTING_UNIT_UNSUITABLE",
+                )
+                reasons.extend(invalid_reasons)
+                # An unusable optional unit source supplies no current unit.
+                # Keep its nested rejection without turning a missing KID unit
+                # into a product contradiction that defeats documented history.
+        reasons = list(dict.fromkeys(reasons))
+        material: dict[str, Any] = {
+            "revision_id": row.id if row else None,
+            "facts": asdict(facts) if facts else None,
+            "reasons": reasons,
+        }
+        if listing_unit is not None:
+            material.update(
+                listing_unit_fingerprint=listing_unit.fingerprint,
+                unit_source_kind=unit_source_kind,
+            )
         return ProductReviewEvidence(
             workspace_id,
             warrant_id,
@@ -359,16 +444,10 @@ class ProductReviewEvidenceReader:
             tuple(reasons),
             row.id if row else None,
             row.recorded_at if row else None,
-            fingerprint(
-                {
-                    "revision_id": row.id if row else None,
-                    "facts": asdict(facts) if facts else None,
-                    "reasons": reasons,
-                }
-            ),
+            fingerprint(material),
             binding=binding,
             currency=facts.currency if facts else None,
-            unit=facts.unit if facts else None,
+            unit=unit,
             source_reference=row.source_reference if row else None,
             source_document_sha256=row.document_sha256 if row else None,
             reference_venue_mic=facts.reference_venue_mic if facts else None,
@@ -379,6 +458,8 @@ class ProductReviewEvidenceReader:
             payment_basis=facts.payment_basis if facts else None,
             payment_qualifier=facts.payment_qualifier if facts else None,
             current_terms_date_role=facts.current_terms_date_role if facts else None,
+            unit_source_kind=unit_source_kind,
+            listing_unit_evidence=listing_unit,
         )
 
     async def reference_market_for_review(

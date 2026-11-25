@@ -9,6 +9,7 @@ from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
 
+from app.features.product.domain.listing_unit_evidence import ListingUnitRead
 from app.features.product.domain.price_scale_evidence import ProductPriceScaleBinding
 
 type ReviewEvidenceStatus = Literal["AVAILABLE", "MISSING", "UNSUITABLE"]
@@ -54,6 +55,8 @@ class ProductReviewEvidence:
     payment_basis: ProductPaymentBasis | None = None
     payment_qualifier: ProductPaymentQualifier | None = None
     current_terms_date_role: CurrentTermsDateRole | None = None
+    unit_source_kind: Literal["KID_ORIGINAL", "LISTING_ORIGINAL"] | None = None
+    listing_unit_evidence: ListingUnitRead | None = None
 
 
 @dataclass(frozen=True, slots=True)

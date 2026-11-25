@@ -23,6 +23,9 @@ from tests.unit.backend.features.position_monitoring.test_hebeltrader_original_b
     NOW,
     saved_example,
 )
+from tests.unit.backend.features.product.test_listing_unit_review_composition import (
+    current_listing_evidence,
+)
 
 from app.features.notification.persistence.models import NotificationModel
 from app.features.position_monitoring.domain.indicative_entry import (
@@ -50,6 +53,7 @@ from app.features.position_monitoring.service.indicative_entry_inputs import (
 from app.features.position_monitoring.service.indicative_entry_read import (
     _assessment_view,
 )
+from app.features.product.domain.listing_unit_evidence import ListingUnitRoute
 from app.features.product.domain.review_evidence import ProductReviewEvidence
 
 durable = legacy.durable
@@ -185,6 +189,55 @@ def test_documented_units_remain_preferred_without_mislabeling_shared_bid_time(c
     assert material["history_continuity_assumed"] is False
     assert material["owner_assessment"]["bid_status"] == "MISSING"
     assert material["coverage_basis"] == "SHARED_QUOTE_TIME"
+
+
+@pytest.mark.parametrize("documented_history", [True, False])
+@pytest.mark.parametrize(
+    "source_problem",
+    [
+        "LISTING_UNIT_RULE_NOT_OBSERVED_AT_EVENT",
+        "LISTING_UNIT_RULE_NOT_EFFECTIVE_AT_EVENT",
+        "LISTING_UNIT_RULE_ORIGINALS_UNQUALIFIED",
+    ],
+)
+def test_unusable_optional_listing_source_does_not_defeat_documented_history(
+    case, documented_history, source_problem
+):
+    current = current_unit(
+        status="MISSING",
+        unit=None,
+        reasons=("PRODUCT_REVIEW_UNIT_UNPROVEN", source_problem),
+    )
+    original = current_listing_evidence(
+        SimpleNamespace(id=current.revision_id, document_sha256=current.source_document_sha256)
+    )
+    route = ListingUnitRoute(
+        delayed_saved().route.warrant_listing_id, "GETTEX_DELAYED", "MUND", "EUR"
+    )
+    listing = replace(
+        original,
+        workspace_id=current.workspace_id,
+        warrant_id=current.warrant_id,
+        route=route,
+        known_at=NOW,
+        event_at=NOW - timedelta(seconds=900),
+        binding=replace(original.binding, product=current.binding, route=route),
+        status="UNSUITABLE",
+        reasons=(source_problem,),
+    )
+    current = replace(current, listing_unit_evidence=listing)
+    material, problems = expanded_scale(
+        case, evidence=scales.scale_evidence(missing=not documented_history), current=current
+    )
+
+    assert material["current_unit_evidence"]["listing_unit_evidence"]["status"] == "UNSUITABLE"
+    assert source_problem in material["current_unit_evidence"]["reasons"]
+    if documented_history:
+        assert problems == () and material["quality"] == "DOCUMENTED"
+        assert material["comparison_covered"]
+    else:
+        assert source_problem in problems and material["quality"] == "UNAVAILABLE"
+        assert not material["comparison_covered"]
 
 
 def test_missing_historical_scale_uses_explicit_current_unit_assumption_and_owner_cost(

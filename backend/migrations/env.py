@@ -52,6 +52,9 @@ from app.features.position_monitoring.persistence import (
     product_deadline_review as product_deadline_models,
 )  # noqa: F401
 from app.features.product.persistence import (
+    listing_unit_evidence as product_listing_unit_models,  # noqa: F401
+)
+from app.features.product.persistence import (
     price_scale_evidence as product_price_scale_models,  # noqa: F401
 )
 from app.features.product.persistence import (

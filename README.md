@@ -4,15 +4,48 @@ Trading Workspace unterstützt einen benutzergesteuerten Tradingprozess: Referen
 
 ## Softwarestand und Planung
 
-**PC-Lieferumfang v1.5.54:** Die [Bereitstellungsnotiz](docs/releases/V1.5.54-UI-FACHSTRUKTUR-PC-DELIVERY.md) liefert die in [PR #372](https://github.com/burckhju/trading-workspace/pull/372) integrierte Fachstruktur A: Aktuelles, Depot, Marktanalyse, Lessons Learned und Basisdaten, mit konsolidierten Depotdetails und erhaltener Rückkehrnavigation. Sie enthält den bisherigen Produkt- und Planungsstand aus v1.5.53. Der bestehende Linux-Launcher übernimmt den nach grüner Main-CI automatisch veröffentlichten Tag mit seinem vollständigen Commit. Die nachfolgende Nachweisfortschreibung bleibt auf ihren datierten Prüfstand begrenzt; Veröffentlichung, PC-Installation und reale Datenabdeckung sind getrennte Nachweise.
+**PC-Lieferung v1.5.55 vorbereitet:** Die [Bereitstellungsnotiz](docs/releases/V1.5.55-P01-GETTEX-PC-DELIVERY.md) beschreibt die Lieferung des vorhandenen P01-gettex-Anschlusses aus [PR #370](https://github.com/burckhju/trading-workspace/pull/370), einschließlich des qualifizierten Regelkatalogs und der Migration `20261124_0061`. Der neue Versionsschnitt benötigt seine eigenen regulären PR- und Main-Prüfungen; die erfolgreichen Tests des bisherigen Heads `30529339…` bleiben diesem Stand zugeordnet. Erst der anschließend veröffentlichte Tag mit seinem vollständigen Commit ist über den bestehenden Linux-Launcher installierbar. Diese Vorbereitung belegt weder eine Veröffentlichung noch eine PC-Installation, einen produktiven Originalimport oder eine gespeicherte P01-V2-Bewertung. Maßgeblicher Auftrag und tatsächlicher Aufgabenstatus bleiben im [Product Backlog](docs/planning/PRODUCT_BACKLOG.md#naechster-schnitt).
+
+**Zuletzt belegte PC-Lieferung v1.5.54:** Die [Bereitstellungsnotiz](docs/releases/V1.5.54-UI-FACHSTRUKTUR-PC-DELIVERY.md) beschreibt die integrierte Fachstruktur A: Aktuelles, Depot, Marktanalyse, Lessons Learned und Basisdaten, mit konsolidierten Depotdetails und erhaltener Rückkehrnavigation. Dieser Stand bleibt die Basis des zuletzt belegten PC-Betriebs. Veröffentlichung, PC-Installation und reale Datenabdeckung sind getrennte Nachweise.
 
 **Nachweisfortschreibung vom 20.11.2026:** Geprüft ist Main `c7db441de36297a98d47cdf28c64b4e5d9994692`, zugleich veröffentlichter Tag `v1.5.52`. Die [aktuelle Einstiegssicht](docs/planning/PRODUCT_BACKLOG.md#aktueller-stand) trennt implementierte Teilumfänge, Fachabnahme, Auslieferung und datierten PC-Betrieb. Der [eine nächste Arbeitsauftrag](docs/planning/PRODUCT_BACKLOG.md#naechster-schnitt) betrifft die reale V2-Datenbereitschaft nach dem inzwischen integrierten und veröffentlichten [Produktdatums-Fix #368](https://github.com/burckhju/trading-workspace/pull/368).
 
 Die versionierte Software ist in [VERSION](VERSION) festgehalten. Die [Produkttermin-Auswertung v1.5.52](docs/releases/V1.5.52-PRODUCT-DATE-SEMANTICS.md) trennt belegtes Produktende und Zahlungstermin, korrigiert daraus entstandene falsche Widersprüche und wertet vorhandene Originalbelege automatisch neu aus. Ein kontrollierter privater Originalimport ergänzt den gesperrten Stuttgarter Kalenderabruf. Die [Build-Reparatur aus v1.5.51](docs/releases/V1.5.51-RELIABLE-BACKEND-BUILD.md) und der fachliche [V2-Umfang aus v1.5.50](docs/releases/V1.5.50-INDICATIVE-V2-AND-PRODUCT-DEADLINES.md) bleiben die Grundlage. Vorhandene Positionen und wirtschaftliche Belege werden weiterverwendet; echte Datenwidersprüche bleiben sichtbar. Die reale B58-Originalstatusversorgung ist weiterhin unbelegt. Ein Softwaretag bestätigt weder die Installation auf dem Nutzer-PC noch vollständige Hebeltrader-Überwachung.
 
-Der letzte belegte PC-Betrieb ist weiterhin [v1.5.51 aus PR #367](https://github.com/burckhju/trading-workspace/pull/367), mit Installation, Aktivierung und abgeschlossenem V2-Lauf. [PR #368](https://github.com/burckhju/trading-workspace/pull/368) ergänzt den damaligen privaten Ursachenbefund sowie die spätere Auslieferung des Fixes; ein PC-Update auf v1.5.52 und die danach tatsächlich wieder auswertbaren Positionen sind noch nicht nachgewiesen. GitHubs älterer „Latest Release“-Datensatz bleibt vom aktuellen Softwaretag getrennt.
+Der [enge P02-Readback vom 24.11.2026](docs/reviews/P02_SOURCE_GAP_READBACK_2026-11-24.md) belegt **v1.5.54 auf `9a5e59d…`**, Schema `20261118_0060` und vier gesunde laufende Dienste. Für dieselbe gebundene JPMorgan-Route ist um **18:21:41 Uhr MEZ** eine auswertbare V2-Bewertung gespeichert: `BELOW_ENTRY`, mit vorhandenem Bid und 10,456 Sekunden Empfangsalter. Die frühere Unterbrechung ist als `JPMORGAN_SNAPSHOT_TIMEOUT` konkretisiert; der damalige Quote war schon vor dessen Erfassung bidlos. Die aktuelle Originalstatuslücke ist keine neue V2-Preisunterbrechung. Original-Bidzeit und qualifizierter Instrumentstatus fehlen weiterhin für B58. Der [Gesamtreadback vom 22.11.2026](docs/reviews/DEPOT_DATA_READBACK_2026-11-22.md) bleibt die letzte vollständige Vierer-Inventur und Zyklusdiagnose; der neue Einzelread liefert keine heutige Gesamtquote. Der [einzige nächste Auftrag](docs/planning/PRODUCT_BACKLOG.md#naechster-schnitt) richtet sich auf die Versorgung einer weiteren tatsächlich offenen Position.
 
 **Aktueller Arbeitsstatus und Abnahmematrix:** [Product Backlog](docs/planning/PRODUCT_BACKLOG.md). Es ist die einzige maßgebliche Aufgabenstatusquelle. Hier steht bewusst keine zweite vollständige Feature-Statusliste.
+
+Der [Datenversorgungsnachweis vom 20.11.2026](docs/reviews/DEPOT_DATA_SUPPLY_2026-11-20.md)
+verbindet die benötigten Regelinputs mit tatsächlichen Datenwegen,
+konkreten Fehlerursachen und Beschaffungsoptionen. Die
+[vollständige passive Depotdiagnose](docs/technical/ISSUER_MONITORING_OPERATIONS.md#lesende-depot-datenversorgungsdiagnose)
+liest vorhandene Positionen und gespeicherte Prüfgründe, ohne einen
+Kursabruf oder Regellauf auszulösen. Der [einzelne Diagnosecollector](scripts/collect-depot-data-supply.py)
+kann außerhalb des installierten Checkouts laufen und liefert ein privates
+Archiv einschließlich tatsächlicher Installations- und DB-Schemabelege.
+Der vollständige Readback, die [enge P02-Ergänzung](docs/reviews/P02_SOURCE_GAP_READBACK_2026-11-24.md)
+und der [Quellenkandidatenread vom 24.11., 20:33 Uhr MEZ](docs/reviews/DEPOT_SOURCE_COVERAGE_READBACK_2026-11-24.md)
+liegen vor. P01/P03/P04 sind weiterhin offen, ohne ausgewählte Quotequelle
+und ohne Mappingrouten. KIDs wurden erfolgreich beschafft; Preiseinheiten
+fehlen, bei P04 zusätzlich Basiswert-/Kalenderklärung. Eine separate vollständig
+gelesene offizielle gettex-Datei enthält einen passenden EUR/MUND-Bid für P01;
+dieser historische Quellennachweis ist noch kein aktueller PC-Verbraucherpreis.
+Der [eine nächste Auftrag](docs/planning/PRODUCT_BACKLOG.md#naechster-schnitt)
+konkretisiert deshalb P01: Listing/Mapping, belegte Einheit und frischer V2-Bid.
+Die [freigegebene P01-Originalprüfung von 21:07 Uhr](docs/reviews/DEPOT_SOURCE_COVERAGE_READBACK_2026-11-24.md#p01-originaleinheit)
+belegt inzwischen: Die Einheit fehlt im bytegleichen KID; kein Parserfix.
+Der ergänzende aktuelle
+[Listing-Einheitenbeleg](docs/reviews/P01_LISTING_UNIT_IMPLEMENTATION_2026-11-24.md)
+ist mit Product-Import, passivem Reader, Migration0061 und V2-Anschluss in
+PR #370 implementiert. Die [Originalprüfung vom 25.11.](docs/reviews/GETTEX_LISTING_UNIT_ORIGINALS_2026-11-25.md)
+schließt die drei gelieferten Börsen-PDFs und die BSW-Klassifikation ein;
+das feste Regelpaket ist mit echten Bytes qualifiziert und hinterlegt.
+Installation, konkrete Listing-/Mappingauswahl und frischer P01-V2-Entscheid
+sind weiterhin getrennt nachzuweisen.
+Weitere unveränderte Gesamt-, P02- oder Kandidatenexporte sind dafür nicht
+erforderlich. Der [Collector-Nachweis](docs/reviews/DEPOT_SOURCE_COVERAGE_COLLECTOR_2026-11-24.md)
+erhält die technischen Prüfungen und ihre eigenen CI-Grenzen.
 
 | Orientierung | Maßgebliche Quelle |
 |---|---|

@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from importlib import import_module
@@ -354,9 +355,41 @@ async def test_external_trade_without_listing_provenance_is_not_guessed() -> Non
 
 
 @pytest.mark.asyncio
-async def test_missing_bid_does_not_create_indicative_value() -> None:
+@pytest.mark.parametrize(
+    ("quality", "provider_reason", "expected_status", "expected_reason"),
+    [
+        (QualityStatus.VALID, None, ProductValuationStatus.MISSING, "WARRANT_BID_MISSING"),
+        (
+            QualityStatus.VALID,
+            "QUOTE_TIMESTAMP_UNKNOWN_INDICATIVE_ANALYSIS_ONLY",
+            ProductValuationStatus.MISSING,
+            "WARRANT_BID_MISSING",
+        ),
+        (
+            QualityStatus.INCOMPLETE,
+            None,
+            ProductValuationStatus.ERROR,
+            "WARRANT_QUOTE_QUALITY_INCOMPLETE",
+        ),
+        (
+            QualityStatus.INCOMPLETE,
+            "SOURCE_DATA_INCOMPLETE",
+            ProductValuationStatus.ERROR,
+            "WARRANT_QUOTE_SOURCE_DATA_INCOMPLETE",
+        ),
+    ],
+)
+async def test_missing_bid_does_not_create_indicative_value(
+    quality, provider_reason, expected_status, expected_reason
+) -> None:
     trade, position, evaluation, listing = _context()
-    provider = _Provider(_quote_result(listing_id=listing.id, bid=None))
+    provider = _Provider(
+        replace(
+            _quote_result(listing_id=listing.id, bid=None),
+            quality_status=quality,
+            reason_code=provider_reason,
+        )
+    )
     service = ProductPositionValuationService(
         database=_Database(
             _Session(
@@ -372,10 +405,13 @@ async def test_missing_bid_does_not_create_indicative_value() -> None:
     result = await service.for_trade(trade.id)
 
     assert result is not None
-    assert result.status is ProductValuationStatus.MISSING
-    assert result.reason == "WARRANT_BID_MISSING"
+    assert result.status is expected_status
+    assert result.reason == expected_reason
     assert result.market_value is None
     assert result.unrealized_gross_pnl is None
+    assert result.monitoring_usable is False
+    assert result.execution_usable is False
+    assert result.source_attempts[0].provider_reason == provider_reason
 
 
 @pytest.mark.asyncio

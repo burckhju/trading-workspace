@@ -1,5 +1,15 @@
 # Hebeltrader-Positionsmeldungen: Integrationsvertrag zu #207
 
+**Datenversorgungsabgleich 20.11.2026:** Der
+[regelbezogene Datenvertrag und Quellen-/Consumerbefund](../reviews/DEPOT_DATA_SUPPLY_2026-11-20.md#2-fachlicher-datenvertrag)
+fasst die hier geltenden Schwellen und Belegpflichten auf Main
+`c7db441de36297a98d47cdf28c64b4e5d9994692` / v1.5.52 zusammen.
+Er trennt B04/B57/B58, die freigegebene V2-Indikation, Produktfristen
+und B06 sowie Datenbeschaffung von noch fehlender Verarbeitung.
+Die folgenden Regeltexte bleiben unverändert; dieser Verweis erteilt
+keine neue Freigabe. Aktueller Arbeitsstatus und nächster Auftrag
+ausschließlich im [Backlog](../planning/PRODUCT_BACKLOG.md#naechster-schnitt).
+
 **Additiver Stand 16.11.2026:** Der historische F207-1-Abgleich bleibt erhalten.
 Der [Evidenzschnitt F207-4](#f207-4-evidence-read) wurde mit
 [PR #344](https://github.com/burckhju/trading-workspace/pull/344) auf Main
@@ -95,6 +105,22 @@ letzten Erfolg, Recovery, laufenden Versuch und Schedulerzustände integriert.
 Altkurs, unklare Originalzeit, lokale Wartephase und tatsächlichen Providerfehler.
 Die Fehlerzähler sind ausdrücklich prozesslokal; gespeicherte Kurse und
 Historienbelege haben einen anderen Lebenszyklus.
+
+Die additive Diagnosefortsetzung vom 22.11.2026 erhält bei
+`QuoteSourceAttempt.status=INSUFFICIENT` den konkreten `refresh_error`,
+die Währung und die gesonderten Felder `retained`, `provider_reason` und
+`quote_time_basis` bis zur API. Bei `quality_status=VALID` ohne Bid **und**
+ohne Referenzpreis lautet der primäre Grund `BID_MISSING`; ein allgemeiner
+Hinweis auf unbekannte Kurszeit ersetzt diesen Preisfehler nicht. Bei
+ungültiger Qualität bleibt der Qualitäts-/Providerfehler maßgeblich.
+Im vorhandenen Legacy-Single-Source-Zweig mit genau einem Listing und
+Versuch führt dies zu `MISSING` für den gültigen, preislosen Fall und
+weiterhin zu `ERROR` für Qualitätsfehler. Der normale Resolververbraucher
+aggregiert `INSUFFICIENT` weiterhin als `MISSING`; der spezifische
+Versuchsgrund bleibt darin erhalten. Beide Wege liefern bei diesen
+preislosen Fällen weder Bewertung noch Monitoring-/Ausführungsfreigabe.
+Auswahlbindung, Referenzpreisverhalten, Frischegrenzen und B58-Anforderungen
+ändern sich nicht. [Code- und Prüfbeleg](../reviews/DEPOT_DATA_READBACK_2026-11-22.md#p02-fortsetzung-20261122).
 
 Diese Diagnose ist keine Umsetzung der Hebeltrader-Positionsregeln. Der
 Historienlesepfad aus #302/#306 und die gettex-Korrekturen aus #305 werden
@@ -2571,8 +2597,68 @@ Ausführungsowner bleibt allein zuständig für Restmenge, gewichteten
 Bruttoeinstand, Korrekturen und historische Ausführungswährung. Ein dokumentierter
 strenger Maßstab hat Vorrang; bekannte Rücknahme, Anpassung oder widersprüchliche
 Bindung darf durch den schwächeren Beleg nicht übergangen werden. Eine nicht
-extrahierbare Einheit bleibt fehlend. Bezugsverhältnis, Mindestausübungsmenge,
+extrahierbare Einheit bleibt ohne gesondert qualifizierten aktuellen
+Listing-Einheitenbeleg fehlend. Bezugsverhältnis, Mindestausübungsmenge,
 Emissionspreis, Ask, Last und Beispielanlagebetrag ersetzen keinen Stückmaßstab.
+
+<a id="current-listing-unit-evidence-v1"></a>
+**Additiver Quellenanschluss vom 24.11.2026:**
+`current-listing-unit-evidence-v1` ergänzt ausschließlich eine fehlende
+KID-Einheit im bestehenden V2-Modus. Product bindet eine unveränderliche
+Listing-Evidenzrevision an Workspace, Produkt, Emittent, Basiswert, aktuelle
+Terms, konkretes aktives Listing, dessen Version, Handelsplatz/MIC, Venue-Version,
+Provider und Währung. Der enge erste Adapter gilt nur für `GETTEX_DELAYED`,
+MUND/EUR und den ausdrücklich erkannten Original-KID-Produktkopf eines
+Call-Optionsscheins auf eine Aktie. Andere Quellen oder Produktklassen erhalten
+dadurch keine pauschale Freigabe.
+
+Vier vorab anhand echter Originalbytes geprüfte Regelrollen — Börsenordnung,
+Freiverkehrsordnung, Ausführungsbestimmungen und Produktklassifikation — müssen
+exakt zu einer hinterlegten Paketversion passen. Der lokale Import prüft eine
+vollständige gettex-gzip-Datei einschließlich CRC und Zielkonflikten; nur daraus
+stammen Dateihash, Fenster, Originalzielzeile und Zeilenhash. Ein frei übergebenes
+JSON, eine URL, ein Hash oder ein Bestätigungsflag ersetzt diesen Scan nicht.
+Der aktuelle Regel-Beobachtungsstand ist von einem ausdrücklich belegten
+Inkrafttreten getrennt. Ohne belegtes `effective_from` beginnt die konservative
+Nutzung erst bei Quellenereignissen ab dem beobachteten Regelstand; daraus wird
+keine historische Gültigkeitsperiode abgeleitet.
+
+Migration0061 ergänzt dafür eine eigene Product-Tabelle mit Revisionskette je
+Listing. Bestehende KID-/Fristdokumentarten und historische Maßstabsimporte bleiben
+erhalten. Die lokale Standardvorschau ist passiv; eine ausdrückliche Anwendung
+prüft Request-ID, erwarteten Vorgänger und Previewfingerprint unter Product-Lock
+erneut. Der passive HTTP-Read verwendet einen eigenen Read-only-Snapshot und
+Serverzeit, akzeptiert keine Quellenauswahl-/Zeitparameter und führt keinen
+Import oder Abruf aus. Geänderte Originale, unbekannte Paketstände und
+Bindungswidersprüche bleiben konkrete Datenprobleme.
+
+Ein ungeeigneter zusätzlicher Listingbeleg bleibt mit seinen Gründen separat
+`UNSUITABLE`; die dadurch weiterhin unbelegte aktuelle Einheit bleibt im
+zusammengesetzten Product-Read `MISSING`. Eine fehlende Quellenqualifikation
+oder ein Quellenereignis vor dem beobachteten Regelstand ist kein Beweis eines
+Produktwiderspruchs und verdrängt keinen unabhängig vollständig dokumentierten
+historischen Maßstab. Ohne geeignete Historie ist die Auswertung weiter gesperrt.
+Tatsächliche KID-/Terms-/Basiswertkonflikte, eine ausdrücklich belegte KID-Währung
+ungleich der Listingwährung und ein angeblich verfügbarer Beleg mit falscher
+Ownerbindung bleiben harte Sperren.
+
+V2 reicht seine tatsächlich gespeicherte Quote-Route an den Product-Reader weiter.
+`unit_source_kind=LISTING_ORIGINAL` und `listing_unit_evidence` bewahren die
+ergänzende Herkunft neben der unveränderten KID-Revision; beide gehen in den
+Bewertungsfingerprint ein. Ein späterer gleichartig gebundener KID wird erneut
+geprüft, benötigt aber nicht täglich einen neuen Listingbeleg. Aktuelle Währung,
+Identität, Produktklasse und harte historische Sperren werden nicht ersetzt.
+Die Qualität bleibt `CURRENT_UNIT_HISTORY_ASSUMED`; Quotealter, Sitzungen,
+V1/B04/B57/B58, Produktfristen und B06 werden nicht verändert. Der
+[Umsetzungsnachweis](../reviews/P01_LISTING_UNIT_IMPLEMENTATION_2026-11-24.md)
+und die [Originalqualifikation vom 25.11.](../reviews/GETTEX_LISTING_UNIT_ORIGINALS_2026-11-25.md)
+trennen das inzwischen mit vier echten Originalen belegte feste Regelpaket
+von der weiterhin fehlenden P01-Betriebsabnahme. Das Paket
+`gettex-mund-eur-equity-call-unit-20261125-v1` hat den beobachteten Stand
+`2026-11-25T05:07:22Z` und kein behauptetes historisches `effective_from`.
+Diese Grenze betrifft das aktuelle Verbraucher-Kursereignis; ein älteres,
+vollständig geprüftes Pretrade-Original bleibt als gesonderter Listingbeleg
+verwendbar und wird dadurch nicht zu einer aktuellen Verbraucherquote.
 
 Die zusätzliche Referenzkalenderbasis verwendet den im aktuellen Original-KID
 genannten Basiswert und Referenzmarkt. Sie kennzeichnet

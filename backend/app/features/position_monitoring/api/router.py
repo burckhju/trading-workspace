@@ -422,6 +422,9 @@ async def get_trade_product_valuation(
                 reference_price_type=attempt.reference_price_type,
                 currency=attempt.currency,
                 refresh_error=attempt.refresh_error,
+                retained=attempt.retained,
+                provider_reason=attempt.provider_reason,
+                quote_time_basis=attempt.quote_time_basis,
             )
             for attempt in value.source_attempts
         ),

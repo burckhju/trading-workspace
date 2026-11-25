@@ -65,6 +65,9 @@ class QuoteSourceAttempt:
     reference_price_type: str | None = None
     currency: str | None = None
     refresh_error: str | None = None
+    retained: bool = False
+    provider_reason: str | None = None
+    quote_time_basis: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -211,6 +214,7 @@ class MultiSourceWarrantQuoteResolver:
                         reason=result.reason_code or "NO_QUOTE_RETURNED",
                         delayed=source.delayed,
                         warrant_listing_id=request.warrant_listing_id,
+                        provider_reason=result.reason_code,
                     )
                 )
                 continue
@@ -225,6 +229,9 @@ class MultiSourceWarrantQuoteResolver:
                         observed_at=quote.observed_at,
                         bid_available=quote.bid is not None,
                         ask_available=quote.ask is not None,
+                        retained=quote.retained,
+                        provider_reason=result.reason_code,
+                        quote_time_basis=quote.quote_time_basis,
                     )
                 )
                 continue
@@ -236,18 +243,23 @@ class MultiSourceWarrantQuoteResolver:
                         source=source.name,
                         status=QuoteSourceAttemptStatus.INSUFFICIENT,
                         reason=(
-                            result.reason_code
-                            or (
-                                f"QUALITY_{result.quality_status.value}"
-                                if result.quality_status is not QualityStatus.VALID
-                                else "BID_MISSING"
-                            )
+                            result.reason_code or f"QUALITY_{result.quality_status.value}"
+                            if result.quality_status is not QualityStatus.VALID
+                            else "BID_MISSING"
                         ),
                         delayed=source.delayed,
                         warrant_listing_id=request.warrant_listing_id,
                         observed_at=quote.observed_at,
                         bid_available=quote.bid is not None,
                         ask_available=quote.ask is not None,
+                        currency=quote.currency,
+                        # Keep acquisition failure and source-clock disclosure
+                        # separate from the missing price. A retained bidless
+                        # quote must not hide a newer failed attempt.
+                        refresh_error=quote.refresh_error,
+                        retained=quote.retained,
+                        provider_reason=result.reason_code,
+                        quote_time_basis=quote.quote_time_basis,
                     )
                 )
                 continue
@@ -271,6 +283,9 @@ class MultiSourceWarrantQuoteResolver:
                         delayed=source.delayed,
                         warrant_listing_id=request.warrant_listing_id,
                         observed_at=quote.observed_at,
+                        retained=quote.retained,
+                        provider_reason=result.reason_code,
+                        quote_time_basis=quote.quote_time_basis,
                     )
                 )
                 continue
@@ -297,6 +312,9 @@ class MultiSourceWarrantQuoteResolver:
                     reference_price_type=quote.reference_price_type,
                     currency=quote.currency,
                     refresh_error=quote.refresh_error,
+                    retained=quote.retained,
+                    provider_reason=result.reason_code,
+                    quote_time_basis=quote.quote_time_basis,
                 )
             )
             priority = quote_priority(quote, assessed_at, request.max_quote_age_seconds)

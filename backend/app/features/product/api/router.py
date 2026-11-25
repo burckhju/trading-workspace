@@ -15,6 +15,7 @@ from app.database.dependencies import get_database_session
 from app.features.product.api.deadline_choice import router as deadline_choice_router
 from app.features.product.api.deadline_listing_terms import router as deadline_listing_terms_router
 from app.features.product.api.errors import translate_product_error
+from app.features.product.api.listing_unit_evidence import router as listing_unit_evidence_router
 from app.features.product.api.price_scale_evidence import router as price_scale_evidence_router
 from app.features.product.api.valuation_evidence import router as valuation_evidence_router
 from app.features.product.domain.models import (
@@ -32,6 +33,7 @@ router.include_router(price_scale_evidence_router)
 router.include_router(currency_evidence_router)
 router.include_router(deadline_choice_router)
 router.include_router(deadline_listing_terms_router)
+router.include_router(listing_unit_evidence_router)
 WORKSPACE_ID = UUID("00000000-0000-4000-8000-000000000001")
 StrikeCurrencyCode = Annotated[
     str,

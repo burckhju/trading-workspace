@@ -250,6 +250,326 @@ Der Release-PR enthält lokale Prüfergebnisse und GitHub-CI. Die noch offene
 JPMorgan-Liveabnahme und fehlende neue Produktabdeckung sind dort ausdrücklich
 aufgeführt und dürfen nicht aus grünen Unit-Tests abgeleitet werden.
 
+<a id="lesende-depot-datenversorgungsdiagnose"></a>
+## Lesende Diagnose der tatsächlichen Depotversorgung
+
+**Neuester enger Betriebsbeleg, 24.11.2026:** Der
+[archivgebundene P02-Read](../reviews/P02_SOURCE_GAP_READBACK_2026-11-24.md)
+bestätigt v1.5.54/9a5e59d…, Schema0060 und vier gesunde laufende Dienste.
+Die Sammlung um 18:23:08–18:23:10 Uhr MEZ findet eine gespeicherte
+V2-Bewertung von 18:21:41 Uhr MEZ mit vorhandenem Bid, 10,456 Sekunden
+Empfangsalter und `BELOW_ENTRY`. Der historische Gap ist
+`JPMORGAN_SNAPSHOT_TIMEOUT`; der heutige
+`ORIGINAL_MARKET_STATUS_NOT_DELIVERED` ist eine Statusdatenlücke, keine
+erneute V2-Preisunterbrechung. Der enge Read ist abgeschlossen. Er enthält
+keine neue Gesamtinventur, keine neue Fristprüfung und keinen Beleg für
+vollständige B58-Inputs. Der Diagnose-/Resolverfix aus PR #370 ist auf
+diesem PC nicht installiert und hat diesen Preisbefund nicht bewirkt.
+
+**Letzter vollständiger Verbraucherread, 22.11.2026:** Der Nutzer hat den nachfolgenden
+Collector auf v1.5.52/c7db441… ausgeführt. Installation/Schema, 30 erfolgreiche
+GETs, vollständiges Vierer-Inventar und unveränderte Monitoringzyklusmarker
+sind im [Readbacknachweis](../reviews/DEPOT_DATA_READBACK_2026-11-22.md)
+belegt. V2-Einstand und Produktfrist hatten damals jeweils 4/4 Datenprobleme.
+Dieser tatsächliche Lauf ergänzt die frühere lokale Helferqualifikation.
+Eine erkannte Grenze bleibt: die sechs Positionsreader geben den konkreten
+P02-Gapgrund aus dem unabhängigen Statusjournal nicht aus. Der
+[gezielte Collectormodus](#gezielter-p02-journalread) hat diese Lücke am
+24.11. geschlossen. Seine Anleitung bleibt für die reproduzierbare
+Diagnose erhalten; sie ist kein erneuter aktueller P02-Arbeitsauftrag.
+
+Nachgeprüfter Main: `9a5e59dac3bb219cbc40641e62e75871eb2ed131` / `VERSION=1.5.54`, PR373 vom 22.11.2026, 21:35:28 Uhr MEZ. Die verwendeten Backendreader, Docker- und Launcherdateien sind gegenüber der geprüften Produktbasis `c7db441de36297a98d47cdf28c64b4e5d9994692` unverändert. Das zusätzliche Delta zum vorherigen Main febeb922… enthält ausschließlich Versions-/Liefermetadaten und Dokumentation. Die tatsächliche Installation von v1.5.54 ist separat durch das neue private Paket belegt, nicht aus Main abgeleitet. [Fachlicher Datenvertrag und Einzelbelege](../reviews/DEPOT_DATA_SUPPLY_2026-11-20.md); [einziger nächster Arbeitsauftrag](../planning/PRODUCT_BACKLOG.md#naechster-schnitt). Lokale Helferqualifikation, tatsächlich ausgeführter passiver Read und fachliche Regelabdeckung bleiben getrennt.
+
+Es existiert bereits ein geeigneter GET-Inventarread: `/api/v1/market-data/positions/quote-coverage`. Er ermittelt alle offenen, nicht stornierten Positionen aus der DB, einschließlich Positionen ohne Quelle; es gibt keine feste Sechserliste und keinen Bezug nur auf letzte Rulechecks. Er liefert Produkt- und Listingidentitäten sowie source selection. Vor/nach Sammlung werden dessen IDs und Mapping-/Auswahlbezüge verglichen. Für diese Inventur ist kein neuer API-Endpoint, Runner oder installierter Anwendungscode nötig.
+
+Quellbelege: [Inventar-API](../../backend/app/features/market_data/api/quote_coverage.py), Z.51–60; [Projektion](../../backend/app/features/market_data/service/position_quote_coverage.py), Z.131–158; [Positionsinventur](../../backend/app/features/market_data/persistence/position_quote_coverage.py), Z.52–114; [Quellenread](../../backend/app/features/market_data/persistence/quote_coverage.py), Z.25–130. Ausschließlich SELECTs und reine Projektion, keine Provideraufrufe/flush/commit. Die Coverage-Projektion besitzt mehrere kurze Reads, keinen global atomaren Snapshot.
+
+Die dortige Eigenschaft `monitoring_usable` ist **kein** Nachweis der B58-/V2-Regelqualität: sie schließt ausdrücklich STALE/REFERENCE_ONLY/TIMESTAMP_UNKNOWN ein (`service/position_quote_coverage.py:209–229`). Die tatsächlichen gespeicherten Regelbewertungen bleiben maßgeblich.
+
+Der ergänzende vorhandene GET `/api/v1/market-data/warrants/quote-coverage`
+liefert bestehende Produktrouten, Mappingzustand, gespeicherte Quotes und
+aktuelle Konfiguration für gehaltene Produkte, ohne Provider-I/O oder Jobplanung
+([API](../../backend/app/features/market_data/api/quote_coverage.py),
+[Service](../../backend/app/features/market_data/service/quote_coverage.py)).
+Seine `discovery_reasons` kommen nur aus aktuellen Schedulerjobs für
+`FRANKFURT_MAPPING`/`VONTOBEL_MAPPING`, nicht aus vollständiger persistierter
+Discoveryhistorie. Frühere Auswahlkandidaten sind im bestehenden
+`PositionQuoteSourceSelectionModel.evidence` gespeichert und werden von
+beiden GETs nicht ausgegeben; dafür ist ein gezielter lesender SELECT
+erforderlich. Leere Runtimegründe belegen keinen früheren Discoveryfehler.
+Beide GETs enthalten nur offene Positionen beziehungsweise deren Produkte:
+Ein heute fehlender Archivkandidat ist erst mit gespeichertem
+`closed_at`/`cancelled_at` als geschlossen/storniert belegt; sonst bleibt
+seine Zuordnung ungeklärt.
+
+Diese vorhandenen Quellen ergänzen die Diagnose ungebundener Positionen;
+der bestehende `--source-gap-from`-Modus setzt eine bestätigte Route voraus.
+Die [gezielte Sammlung](#gezielter-quellenkandidatenread) ergänzt diese
+Fakten im selben eigenständigen Collector. Für passive DB-Reads keine Owner-Methode mit
+`FOR UPDATE` verwenden; insbesondere sperrt
+`PositionQuoteSourceSelectionRepository.active_for_position()` die Auswahlzeile.
+
+**Journalgrund fachlich auswerten:** `GAP_PRESENT` allein belegt keinen
+Preisausfall. `ORIGINAL_MARKET_STATUS_NOT_DELIVERED` bleibt eine strenge
+B58-Lücke, ist aber im freigegebenen V2-Pfad ausdrücklich von
+`REVIEW_PRICE_SUPPLY_INTERRUPTED` ausgenommen. Bei Abruffehlern können
+Batchcaches denselben Fehler erneut zurückgeben; die Gap-Erfassungszeit
+ist deshalb nicht ohne Weiteres die ursprüngliche Netzwerkfehlerzeit.
+Ein früherer bidloser Quote und ein später erfasster Timeout sind getrennte
+Fakten. Empfangszeit, Originalkurszeit und Statusgeltung bleiben verschieden.
+
+### Ein einzelner lesender Collector außerhalb des Programmordners
+
+Der [Collector `collect-depot-data-supply.py`](../../scripts/collect-depot-data-supply.py)
+ist eine eigenständige Datei. Auf dem bestehenden Linux-PC als bisheriger
+Installationsbenutzer herunterladen und außerhalb des Programmordners
+speichern, beispielsweise im Downloadordner. Ein Checkout-/Releasewechsel
+ist für diesen Lesevorgang nicht erforderlich.
+
+```bash
+python3 "$HOME/Downloads/collect-depot-data-supply.py"
+```
+
+Der Standardbasisordner ist `~/Boerse`; ein bereits gesetztes
+`TRADING_WORKSPACE_BASE` beziehungsweise `--base /absoluter/pfad` übernimmt
+abweichende Installationsorte. Der Host benötigt Python 3.10 oder neuer
+und verwendet ausschließlich dessen Standardbibliothek. Die fachlichen Reader und ihre vorhandenen Abhängigkeiten
+laufen im bereits vorhandenen Backendcontainer. Es werden keine Pakete
+installiert und keine fehlenden Dienste gestartet.
+
+Der Collector gibt das neue private Diagnoseverzeichnis unmittelbar aus.
+Es liegt außerhalb des Repositories, hat Modus `0700`; Dateien und das
+abschließend erzeugte `.tar.gz` haben `0600`. Bei unzugänglichem Bestand
+oder unvollständigem Abruf bleibt ein Fehlerpaket mit genauer Fehlerklasse
+erhalten. Ein fehlender Zugang wird nicht als fehlende fachliche Daten
+umgedeutet. Das Archiv privat bereitstellen; keine Rohdatei als PR-Anhang
+veröffentlichen.
+
+| Datei im privaten Archiv | Inhalt und Nachweisgrenze |
+| --- | --- |
+| `installation-before.json`, `installation-after.json` | Selektive Git-/VERSION-/Deployment-Marker und Docker-Container-/Imagebezüge. Vorher/nachher vergleichen; keine `.env`, vollständigen Konfigurationen oder Docker-Inspects. |
+| `schema.json` | Tatsächliche Alembic-Revisionswerte über die konfigurierte Backend-Datenbank in einer ausdrücklich lesenden Transaktion. Kein aus dem Release angenommener Schemastand. |
+| `monitoring-private.json` | Vollständiges Inventar vor/nach, Runtime-/Refreshstatus vor/nach und sechs vorhandene GET-Reader je aktueller Position samt unveränderten Antworten und Lesefehlern. |
+| `summary.json` | Ergebnis der Sammlung, Verfügbarkeit und beobachtete Bindungswechsel. Vollständiger Transport ist keine V2-/B58-/B06-Regelqualifikation. |
+
+**Zulässige Operationen:** Git-Metadaten mit unterdrückten optionalen
+Schreiblocks, kleine explizit ausgewählte Deployment-Marker, Docker-
+Container-/Imageinspektion mit fest begrenzten Feldern sowie `docker exec`
+gegen die zuvor validierte bestehende Backend-ID. Im Backend läuft Python
+mit `-B`, um neue Bytecode-Dateien zu vermeiden. Der Schemaread verwendet die
+wirklich konfigurierte Datenbank mit `READ ONLY`, begrenzten Wartezeiten und
+abschließendem Rollback. Er lässt damit auch einen abweichenden Datenbank-
+URL-Zugang korrekt beim vorhandenen Backend; Zugangsdaten werden nicht
+in das Paket geschrieben. Die eigentliche Verbrauchersammlung verwendet
+im Vollmodus nur die bereits qualifizierten GET-Pfade.
+
+**Ausdrücklich nicht Teil dieses Collectors:** Launcher `status`,
+Deploymenthelfer, `docker compose`, Validatorcontainer, Build/Start/Update,
+Refresh, Import, Regelausführung, Anbieterzustimmung oder Nachrichtenversand.
+Die laufenden Dienste werden weder angehalten noch pausiert. Fehler werden
+mit begrenzten Klassen gemeldet; vollständige Containerlogs, Tracebacks,
+Providerkeys und Produktoriginalbytes werden nicht gesammelt.
+
+<a id="gezielter-p02-journalread"></a>
+### Einmaliger gezielter Journalread nach vollständigem Archiv
+
+Der ergänzte Modus desselben Collectors liest genau eine im alten Paket
+gebundene Position. Er wurde am 24.11. gegen die archivierte v1.5.52-Bindung
+auf der tatsächlichen v1.5.54-Installation erfolgreich ausgeführt und
+benötigt keinen installierten Resolverfix. Die heruntergeladene Datei
+im Downloadordner durch die neue Fassung ersetzen; die Archivangabe im
+Beispiel durch den tatsächlich vorhandenen Pfad ersetzen:
+
+```bash
+python3 "$HOME/Downloads/collect-depot-data-supply.py" \
+  --source-gap-from /absoluter/pfad/zum/bisherigen-diagnosepaket.tar.gz \
+  --position-label P02
+```
+
+`P02` bezeichnet ausschließlich das Pseudonym im **angegebenen alten
+Archiv**, keine laufende Nummer der heutigen Positionsliste. Der Helfer
+liest fünf begrenzte reguläre JSON-Archiveinträge im Speicher, ohne sie zu
+entpacken. Er prüft Transport, Payloadbindung, Inventar, gespeicherte
+Quellenroute, Auswahlversion und referenzierte Bewertung. Ungültige,
+unvollständige oder mehrdeutige Archive führen zu einem privaten Fehlerpaket.
+
+**Falls `unrecognized arguments` erscheint:** Zeigt die Hilfe nur `--base`,
+wird noch eine Collector-Fassung ohne den engen Modus ausgeführt. Die
+Argumentprüfung bricht dann vor jeder Sammlung ab. Dies wurde beim
+Nutzeraufruf vom 23.11.2026 beobachtet; daraus folgt kein Backend- oder
+Datenbankfehler. Die bereitgestellte Fassung aus
+[Commit451b10da](https://github.com/burckhju/trading-workspace/blob/451b10daa4b3a838605ad82cdbf6689aed9bb1f2/scripts/collect-depot-data-supply.py)
+besitzt beide Optionen. Zur eindeutigen Zuordnung kann dieselbe Datei als
+`collect-depot-source-gap-451b10da.py` gespeichert werden; im Aufruf dann
+genau diesen Dateinamen verwenden. Die separat bereitgestellte Downloadkopie
+ist bytegleich, SHA256
+`d9b6997b8e2644b658fc921aba37d45f9eac7e5a226347e024d88a6736a045c2`.
+Ein App-Update ist für die Korrektur des lokalen Dateinamens nicht nötig.
+
+Im bestehenden Backend folgen die Installations-/Schemabindung und eine
+einzelne `REPEATABLE READ READ ONLY`-Transaktion. Die tatsächlich gesetzten
+Transaktionseigenschaften werden vor den Ownerreads kontrolliert;
+`autoflush=False`, begrenzte Verbindungs-/Statement-/Lockwartezeiten und
+explizites SQL-`ROLLBACK` gelten auch bei Fehlern. Die konfigurierte
+Datenbankadresse verbleibt im Backend. Gelesen werden:
+
+- aktuelle offene Position, Produkt und bestätigte Quellenauswahl gegen
+  die archivierte Identität;
+- der gespeicherte Quote und der vorhandene `MarketStatusReader` mit
+  `latest_gap`, `latest_capture` und seinen zeitlich gebundenen Beobachtungen;
+- genau die archivierte Bewertung samt damaligen `saved_quote`,
+  `status_observations` und `current_refresh_failed`, daneben der aktuelle
+  Bewertungskopf. Es erfolgt keine erneute Bewertung oder nachträgliche
+  Rekonstruktion historischer Fakten aus dem heutigen Quote.
+
+Bei geänderter Position, Produkt-/Quellenroute oder Auswahlbindung meldet
+der Helfer die Abweichung. Er wechselt nicht zu einer anderen Position.
+Ein gewöhnlicher Softwarewechsel seit dem Referenzpaket wird gesondert
+ausgewiesen; Installation und Container müssen innerhalb des neuen Laufs
+unverändert und prüfbar bleiben.
+
+Das neue private Archiv enthält `installation-before.json`,
+`installation-after.json`, `schema.json`, `source-gap-private.json` und
+`summary.json`. Dieser Modus wiederholt keine der 30 GET-Abfragen und führt
+keinen Providerabruf aus. Die bisherigen Verzeichnis-/Dateirechte und
+Fehlerpakete bleiben erhalten. Auch ein unvollständiges Paket privat
+bereitstellen; vollständige Terminallogs werden nicht benötigt.
+
+`COMPLETE_PASSIVE_SOURCE_GAP_READ_NOT_PRICE_QUALIFICATION` bedeutet, dass
+die gebundenen gespeicherten Fakten gelesen wurden. Ein ausdrücklich
+leeres Journal ist ein eigener möglicher Befund. Der Status beweist
+weder einen neuen Bid noch eine reparierte Quelle oder B58-Konformität.
+Die [Prüfbelege](../reviews/DEPOT_DATA_READBACK_2026-11-22.md#p02-fortsetzung-20261122)
+und der [einzige Arbeitsauftrag](../planning/PRODUCT_BACKLOG.md#naechster-schnitt)
+halten Vorbereitung und tatsächliches PC-Ergebnis getrennt.
+
+<a id="gezielter-quellenkandidatenread"></a>
+### Einmaliger Quellenkandidatenread nach vollständigem Archiv
+
+**Ausgeführt und ausgewertet am 24.11., 20:33 Uhr MEZ:** Der
+[Readback](../reviews/DEPOT_SOURCE_COVERAGE_READBACK_2026-11-24.md) bindet
+P01/P03/P04 und ihre konkreten Quellen-/Produktblocker. Für diesen Befund
+ist keine Wiederholung erforderlich. Der folgende Aufruf bleibt die
+dokumentierte Wiederherstellungsanleitung des verwendeten Modus;
+der [aktuelle Auftrag](../planning/PRODUCT_BACKLOG.md#naechster-schnitt)
+betrifft jetzt die konkret belegte P01-Versorgung.
+
+Die [anschließende P01-Originalprüfung](../reviews/DEPOT_SOURCE_COVERAGE_READBACK_2026-11-24.md#p01-originaleinheit)
+ist nach ausdrücklicher Freigabe abgeschlossen: Das KID stimmt bytegleich
+mit der PC-Revision überein und enthält keine ausdrückliche Preiseinheit.
+`unit=null` ist hier kein Parserfehler; ein weiterer KID-Download oder Reparse
+würde das fehlende Feld nicht ergänzen. Der zusätzliche aktuelle
+[gettex-Listing-Einheitenbeleg](../reviews/P01_LISTING_UNIT_IMPLEMENTATION_2026-11-24.md)
+besitzt inzwischen einen additiven Product-/V2-Anschluss mit Migration0061.
+Die [Originalqualifikation vom 25.11.](../reviews/GETTEX_LISTING_UNIT_ORIGINALS_2026-11-25.md)
+ist mit den drei gelieferten Börsen-PDFs und der vollständigen BSW-Klassifikation
+abgeschlossen. Der feste Katalog enthält genau das geprüfte MUND/EUR-Paket;
+ein tatsächlicher Product-Import ist daraus noch nicht abzuleiten.
+Der vorhandene historische Maßstabsimport und der
+XSTU-Fristimport werden dafür nicht zweckentfremdet. Der neue lokale
+`import_listing_unit_originals`-Helfer prüft standardmäßig nur lesend;
+`--apply` verlangt Request-ID und Previewfingerprint. Der passive Read
+`GET /api/v1/warrants/{warrant_id}/listings/{listing_id}/current-unit-evidence`
+zeigt Herkunft und konkrete Gründe. Beide Wege wählen keine Positionsquelle.
+Der Quellen-/Importnachweis und die spätere aktuelle P01-V2-Abnahme bleiben
+getrennt; die belegte PC-Installation v1.5.54 enthält diesen Anschluss noch nicht.
+
+Die im [vorbereiteten P01-Ablauf](../reviews/GETTEX_LISTING_UNIT_ORIGINALS_2026-11-25.md#5-vorbereitete-p01-import--und-mappingvorschau)
+benannten aktuellen Listing-/KID-IDs müssen aus dem tatsächlichen Ownerbestand
+kommen. Der Originalimport kann erst mit installiertem Anschluss/Schema0061,
+vier passenden Originalen und einer vollständigen lokalen gettex-Datei als
+echte DB-Vorschau laufen. Ein alter Hash oder ein JSON-Zielauszug ersetzt den
+Vollscan nicht. Die alte Datei kann Listing-Mitgliedschaft belegen; der aktuelle
+V2-Kurs muss nach dem Regelbeobachtungsstand vom 25.11., 06:07:22 Uhr MEZ liegen
+und die unveränderte Altersgrenze erfüllen. Kein neuer Gesamtexport erforderlich.
+
+Der Modus `--source-coverage-from` liest die heutigen gespeicherten Fakten
+zu den **im ursprünglichen vollständigen Archiv noch nicht ausgewählten**
+Positionen. Im gelieferten Referenzbestand sind dies P01/P03/P04; P02
+gehört nicht dazu. Die Labels werden aus dem alten Archiv gebunden, nicht
+aus der heutigen Reihenfolge. Der jüngste enge P02-Export ist hierfür das
+falsche Referenzarchiv und wird kontrolliert abgelehnt.
+
+Die neue einzelne Datei außerhalb des installierten Checkouts speichern,
+beispielsweise als `collect-depot-source-coverage-20261124.py`. Ihre Hilfe
+muss `--source-coverage-from` aufführen. Auf dem bestehenden PC als
+Installationsbenutzer ausführen; den Archivpfad durch das tatsächlich
+vorhandene vollständige Paket ersetzen:
+
+```bash
+python3 "$HOME/Downloads/collect-depot-source-coverage-20261124.py" \
+  --source-coverage-from /absoluter/pfad/zum/vollstaendigen-diagnosepaket.tar.gz
+```
+
+Ein `--position-label` wird in diesem Modus nicht verwendet; bis zu zwanzig
+damals ungebundene Kandidaten werden gemeinsam gelesen. `--source-gap-from`
+und `--source-coverage-from` sind gegenseitig ausgeschlossen. Die bisherigen
+Standard- und P02-Aufrufe bleiben erhalten. Kein App-Update nötig.
+
+Der Read verbindet die vorhandenen Positions- und Produkt-Coverage-GETs
+vor/nach mit einer ausdrücklich bestätigten lesenden DB-Transaktion.
+Zusätzlich erfasst er die ursprüngliche und aktuelle gespeicherte Auswahl
+samt Kandidaten, den Trade-/Positionzustand, archivierte und aktuelle
+Bewertungsinputs sowie aktuelle Product-/Beschaffungs-/KID-Metadaten.
+Er führt keine neue Auswahl, Dokumentbeschaffung oder V2-Bewertung aus.
+Originaldokumente, Providerzugangsdaten und komplette Logs werden nicht
+gesammelt. Die [Qualifikation und genauen Grenzen](../reviews/DEPOT_SOURCE_COVERAGE_COLLECTOR_2026-11-24.md)
+bleiben vom inzwischen vorliegenden tatsächlichen PC-Read getrennt.
+
+`source-coverage-private.json` enthält die Zielbefunde; Installation,
+Schema und Zusammenfassung liegen separat im selben privaten Paket.
+`COMPLETE_PASSIVE_SOURCE_COVERAGE_READ_NOT_RULE_QUALIFICATION` bescheinigt
+den vollständigen gebundenen Transport. Fehlende Kandidaten, geschlossene
+Positionen und fehlende Bewertungen können gültige fachliche Befunde sein.
+Eine unbekannte oder geänderte Bindung wird nicht durch eine andere
+Position ersetzt. Auch ein unvollständiges Paket für die Auswertung privat
+bereitstellen; kein pauschaler erneuter Gesamtexport oder P02-Read nötig.
+
+### Korrektur des vorbereiteten Ablaufs vom 20.11.2026
+
+Der frühere Dokumentblock begann mit `trading-workspace status`. Dieser
+ändert zwar keine Depotregeln, ruft aber den vorhandenen Deploymentvalidator
+auf: [Launcher](../../scripts/trading-workspace.sh), Z.105/141, und
+[Deploymenthelfer](../../scripts/migrate-legacy-issuer.sh), Z.60–64/101–106,
+legen unter anderem Lock-/Wartungsdateien an beziehungsweise starten einen
+isolierten Validatorcontainer. Deshalb wird dieser Aufruf aus dem streng
+passiven Diagnosepfad entfernt. Der Launcher selbst wird nicht verändert.
+Außerdem fehlte bislang ein tatsächlicher DB-Schemabeleg, obwohl die
+Backlog-Abnahme ihn verlangt. Der neue getrennte Schemaread schließt diese
+Lücke des vorbereiteten Collectors; eine echte PC-Abnahme ist damit noch
+nicht erbracht.
+
+Der fachliche GET-Pythonteil des alten Blocks wird unverändert übernommen:
+11.191 UTF-8-Bytes, SHA256
+`b8dee0cd47ccd95a224cf5897eb60233d3195bf9d76700a103acfcfbc5dbafab`.
+Die Prüfung mit den vorhandenen Response-Dataclasses bleibt erhalten.
+Die Imports kommen aus der installierten Anwendung und öffnen selbst
+keine Datenbanksitzung. Zulässige `null`-Bewertungen und fachliche
+MISSING-/UNSUITABLE-Befunde bleiben erhalten; unvollständige HTTP-200-
+Antworten sind Diagnosefehler. Die Rohantwort wird durch die Prüfung
+nicht ersetzt. Die nachfolgenden Auswertungsregeln gelten weiter.
+
+### Auswertungsregeln
+
+1. Beide Inventarreads erfolgreich und mit dem vorhandenen Responsevertrag validiert, vollständige Object-/List-/Countstruktur und kanonische nichtleere UUIDs, `summary.open_positions == len(items)`, keine doppelten Positions- oder Tradekennungen. Bei fehlerhaftem Inventar werden **keine** Einzelposition-URLs gebildet; IDs werden vor Verwendung validiert und kanonisiert. Jede Position bekommt alle **sechs** vorgesehenen, mit ihren Responseverträgen geprüften Read-Ergebnisse oder einen ausdrücklich benannten Diagnosefehler. Runtime- und Refreshstatus vor/nach der Sammlung müssen ebenfalls zugänglich sein; sonst lautet der Sammelstatus `AUXILIARY_READS_UNAVAILABLE`. Null offene Positionen erhält `NO_OPEN_POSITIONS_NO_COVERAGE_EVIDENCE`; `all_position_reads_available` bleibt false. `latest_assessment=null` kann ein gültiger Readerbefund sein, bedeutet aber fehlende Bewertung und keine Regelabdeckung.
+2. Inventar/Bindings und idle Zyklusmarker unverändert: Sammlung ohne beobachteten Zykluswechsel. Das ist keine globale DB-Snapshotgarantie. Bei Wechsel den betroffenen Teil lesend wiederholen, keine laufenden Dienste pausieren. Persönliche Buchungs-/Belegänderungen und Kursrefresh können weiter stattfinden.
+3. Für V2: `latest_assessment` vorhanden, `rule_version=indicative-entry-review-v2`, ausgewerteter Zeitpunkt/basis/source sichtbar. `latest_assessment.reasons`, `document_readiness` und aktive `DATA_UNAVAILABLE`-Episode gemeinsam lesen; Erwerbserfolg ist nicht Dokumenteignung. `document_readiness` enthält lediglich Versuchsergebnis/-zeit/-backoff. Es weist **keine** aktuelle KID-Revision, Parserfassung oder erfolgreiche lokale Neubewertung nach.
+4. Für v1.5.52-Wirkung: installierten Stand bestätigen, letzte reguläre Bewertung nach Update heranziehen; wegfallender falscher Terms-Mismatch muss von weiter bestehendem echten Datums-/Underlying-Mismatch unterschieden werden. Keine Quote/Einstandsfreigabe allein aus verschwundenem Fehlercode.
+5. Für strenge Regeln: Original-BID-/Maßstab-/Kalenderchecks und `hebeltrader-loss.activation_status`/Qualifikationsreferenzen auswerten. Ein reiner `FRESH_QUOTE` oder `monitoring_usable=true` ist keine B58-Eignung. Für B06 sind **beide Pflichtreads** nötig: `hebeltrader-targets` für historische Ziele/Targetzustand sowie `/api/v1/trade-position/trades/{id}/hebeltrader-evidence?position_id=...` für historischen persönlichen Basiswerteinstand, Währung, Ausführungsbezüge und Belegabdeckung. Der zweite Read liefert je Beitrag die Abdeckung/Verknüpfung in `items`/`execution_links` und die wirtschaftliche `valuation_basis`; er gibt die rohe `declaration.underlying_trades` nicht aus. Nur bei konkretem Bedarf an den originalen Einzel-BUY-Belegen zusätzlich dessen vorhandenen `/history`-GET lesen. Fehlende Grundbelege und bekannt unimplementierte Folgestopanteile getrennt ausweisen.
+6. Öffentlich ausschließlich Tabelle `Pseudonym | Regel | belegt/teilweise/nicht auswertbar | konkrete Fehlcodes | Kategorie Quelle/Mapping/Import/Verarbeitung/Konfiguration/Fachentscheidung | Owner | Beschaffung`. Private `identity_private`-Map und vollständige Originalreadantworten im privaten Diagnoseverzeichnis belassen. Bei Unterstützung nur über einen ausdrücklich privaten Kanal bereitstellen; Beträge/IDs vor Repositoryübernahme entfernen.
+
+Gezielt ergänzend, nur wenn die vorhandenen Reader eine Ursache nicht liefern: passiver `hebeltrader-targets/qualification-preview` für konkrete historischen Quellen-/Skalenprobleme; `hebeltrader-sessions` für genaue Zeitraumlücken; privater bereits vorhandener Logauszug zum dokumentierten Acquisitionversuch für HTTP403 versus Timeout. Diese sind kein unbedingter weiterer Dauerschritt.
+
+### Grenze des vorhandenen Product-Readbacks bei unklarem Datumswiderspruch
+
+**Genau ein bestehender GET enthält passende Product-Owner-Teilbelege:** der bereits verpflichtend gelesene `/api/v1/position-monitoring/trades/{id}/product-deadline-review?position_id=...`. Seine `latest_assessment.product_evidence` nennt `product_document_revision_id`, `product_end_on`, `payment_on`, `payment_qualifier` und `current_terms_date_role`. Diese Werte beschreiben die **damals ausgewertete** Product-Owner-Evidenz, nicht den unabhängig aktuellen KID-Head. `product_evidence.recorded_at` ist das Maximum von KID-, Exitwahl- und Listingterms-Speicherzeiten; es darf nicht als alleinige KID-Reparsezeit bezeichnet werden (`product/service/review_evidence.py:463–506`; `position_monitoring/service/product_deadline_review_read.py:85–99`).
+
+Der aktuelle Main hat **keinen HTTP-GET**, der den aktuellen KID-Head einschließlich `parser_version`, originalem `retrieved_at` und eigenem `recorded_at` vollständig zurückgibt. `ProductReviewEvidenceReader.current_for_review` ist nur ein interner passiver Ownerread und enthält selbst kein Parserfeld. `latest_document` (`product/service/review_evidence.py:55–74`) liest per SELECT die passende `ProductReviewDocumentModel`-Revision samt Parserfassung, ist aber nicht als GET exponiert. Der vorhandene `deadline-listing-terms/current`-GET betrifft einen anderen Belegtyp und ersetzt diesen KID-Nachweis nicht.
+
+Deshalb gilt: Bleibt nach bestätigt installiertem v1.5.52 und nachfolgendem regulärem Zyklus ein unklarer Terms-Mismatch bestehen, reicht diese GET-Sammlung für die **aktuelle Parserursache** nicht. Dann ist genau ein gezielter passiver KID-Metadatenread beim bestehenden Product-Owner erforderlich (nur Produkt-/Revision-/Terms-ID, Parserfassung, `recorded_at`, `retrieved_at`, Dokumenthash und begrenzte `facts.issues`/Datumsrollen; keine Originalbytes). Dieser Zusatz ist hier **weder ausgeführt noch als vorhandener API-Pfad erfunden**. Ohne ihn bleibt die konkrete Reparsefrage ausdrücklich offen. Kein neuer Spec-, Command-, Import- oder Beschaffungspfad ist Bestandteil des Snippets.
+
+Der ergänzte B06-Reader ist anhand `trade_position/api/hebeltrader_evidence.py:165–175` und `service/hebeltrader_evidence.py:479–511` als `REPEATABLE READ READ ONLY`, ohne Netzwerk/Commands, mit abschließendem Rollback geprüft.
+
 ## Git-Versionierung
 
 `VERSION`, `backend/pyproject.toml`, `frontend/package.json` und dessen Lockdatei

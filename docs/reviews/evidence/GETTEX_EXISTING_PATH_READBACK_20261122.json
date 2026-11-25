@@ -1,0 +1,98 @@
+{
+  "refresh_before": {
+    "json_path": "refresh_before/body/jobs/*/{source_attempts,quotes}",
+    "enabled": true,
+    "running": true,
+    "leader": true,
+    "gettex_jobs": 10,
+    "held_counts": {
+      "False": 10
+    },
+    "settings": {
+      "warrants_interval_seconds": 300,
+      "auto_configure": false,
+      "auto_select_position_sources": true
+    },
+    "checked_bounds": [
+      "2026-11-22T19:43:11.096120Z",
+      "2026-11-22T19:50:09.723119Z"
+    ],
+    "attempt_reasons": {
+      "LAST_SUCCESSFUL_QUOTE_REFRESH_FAILED": 10
+    },
+    "refresh_errors": {
+      "GETTEX_DELAYED_RECENT_FILE_NOT_AVAILABLE": 10
+    },
+    "identity_verified_count": 10,
+    "quote_count": 10,
+    "quote_facts": {
+      "retained_count": 10,
+      "positive_bid_count": 10,
+      "source_modes": {
+        "OFFICIAL_DELAYED_PRETRADE": 10
+      },
+      "venue_mics": {
+        "MUND": 10
+      },
+      "currencies": {
+        "EUR": 10
+      },
+      "source_event_dates": {
+        "2026-11-20": 9,
+        "2026-10-06": 1
+      },
+      "receipt_dates": {
+        "2026-11-20": 9,
+        "2026-10-06": 1
+      }
+    }
+  },
+  "refresh_after": {
+    "json_path": "refresh_after/body/jobs/*/{source_attempts,quotes}",
+    "enabled": true,
+    "running": true,
+    "leader": true,
+    "gettex_jobs": 10,
+    "held_counts": {
+      "False": 10
+    },
+    "settings": {
+      "warrants_interval_seconds": 300,
+      "auto_configure": false,
+      "auto_select_position_sources": true
+    },
+    "checked_bounds": [
+      "2026-11-22T19:43:11.096120Z",
+      "2026-11-22T19:50:09.723119Z"
+    ],
+    "attempt_reasons": {
+      "LAST_SUCCESSFUL_QUOTE_REFRESH_FAILED": 10
+    },
+    "refresh_errors": {
+      "GETTEX_DELAYED_RECENT_FILE_NOT_AVAILABLE": 10
+    },
+    "identity_verified_count": 10,
+    "quote_count": 10,
+    "quote_facts": {
+      "retained_count": 10,
+      "positive_bid_count": 10,
+      "source_modes": {
+        "OFFICIAL_DELAYED_PRETRADE": 10
+      },
+      "venue_mics": {
+        "MUND": 10
+      },
+      "currencies": {
+        "EUR": 10
+      },
+      "source_event_dates": {
+        "2026-11-20": 9,
+        "2026-10-06": 1
+      },
+      "receipt_dates": {
+        "2026-11-20": 9,
+        "2026-10-06": 1
+      }
+    }
+  }
+}
