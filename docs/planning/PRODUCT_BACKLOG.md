@@ -4,14 +4,60 @@
 
 | Feld | Wert |
 |---|---|
-| Revision | 25.11.2026: Aktuellen Main, PR-Head und Lieferweg erneut gelesen; v1.5.55 für den vorhandenen P01-gettex-Anschluss konkret vorbereitet. Fünf Versionswerte konsistent, bestehender Launcher unverändert. Das qualifizierte Vierer-Regelpaket bleibt erhalten; BSW-Dateikopie erneut bytegleich bezogen. Veröffentlichung, PC-Update, echte DB-Vorschau und Verbraucherabnahme bleiben eigene Nachweise im selben P01-Auftrag. |
+| Revision | 25.11.2026: P01-Softwarelieferung v1.5.55 nach ausdrücklicher Nutzerfreigabe und vollständig grüner PR-/Main-CI veröffentlicht. Merge und unveränderlicher Tagcommit sind zurückgelesen. PC-Installation, aktuelle P01-Ownerbindung, echte DB-Vorschau und Verbraucherabnahme bleiben im selben Auftrag offen. |
 | Erstprüfung | 19.11.2026, 19:31:38 Uhr MEZ (Europe/Berlin), auf `254f0bbd52ab42e0120d381e915dc96c1118796c` / `v1.5.51` |
 | Fortschreibung | 20.11.2026, Beginn 13:46:04 Uhr MEZ; Main-/Release-Delta, tatsächliche CI, PR- und Betriebsnachweise erneut geprüft |
-| Geprüfter Produktstand | Fachlicher Daten-/Readervertrag auf `c7db441de36297a98d47cdf28c64b4e5d9994692` / v1.5.52; Backendreader und bestehende Betriebshelfer bis zum unten genannten Main unverändert. Die neue Oberfläche bleibt an ihre eigenen #372-Nachweise gebunden. |
-| Aktueller Main | `9a5e59dac3bb219cbc40641e62e75871eb2ed131`, Mergecommit #373 vom 22.11.2026, 21:35:28 Uhr MEZ, `VERSION=1.5.54`. Das Delta seit #372/febeb922… ändert ausschließlich Versions-/Liefermetadaten und Dokumentation; Backendpfade unverändert. Main ist kein Nachweis einer PC-Installation. |
+| Geprüfter Produktstand | Ursprünglicher Daten-/Readervertrag auf `c7db441de36297a98d47cdf28c64b4e5d9994692` / v1.5.52; der ergänzende P01-Anschluss und P02-Resolverfix sind auf Release-Head `2701efa08c84c603c356e0312c0aefd409f4a4b0` und dem unten genannten Main jeweils eigenständig qualifiziert. Die Oberfläche behält ihre eigenen #372-Nachweise. |
+| Aktueller Main | `eb7f89a30a1772f2c140c5a11cdfb0284d80fc3c`, Merge #370 vom 25.11.2026, 08:37:31 Uhr MEZ, `VERSION=1.5.55`. Tag v1.5.55 wurde nach vollständiger Main-CI um 09:07:32 Uhr MEZ auf genau diesem Commit veröffentlicht. Main und Tag sind kein Nachweis einer PC-Installation. |
 | Tatsächlicher PC | v1.5.54 auf `9a5e59dac3bb219cbc40641e62e75871eb2ed131`, zuletzt im Quellenkandidatenpaket vom 24.11.2026, 20:33 Uhr MEZ, vor/nach verifiziert; letzte vollständige Inventur weiterhin vom 22.11. |
 | Funktion | Einzige maßgebliche Quelle des aktuellen Aufgabenstatus; bestehende PB-/FT-/M-Kennungen und Owner bleiben erhalten |
-| Prüfgrenze | Vollständiger Checkout, Quellprüfung, Gesamtreadback vom 22.11., P02- und Quellenkandidatenreads vom 24.11., isolierte gettex-Dateiprobe und freigegebene P01-KID-Prüfung; am 25.11. echte Vierer-Regeloriginalqualifikation. Kein interaktiver PC-/DB-Zugang, neuer DB-Previewfingerprint, Product-Import oder neuer P01-Entscheid aus dieser Originalprüfung |
+| Prüfgrenze | Vollständiger Checkout, Quellprüfung und datierte PC-/Originalbelege bleiben erhalten; am 25.11. zusätzlich Release-Head, tatsächlicher Main-Merge, deren eigene CI sowie Publisher und Tag geprüft. Weiterhin kein interaktiver PC-/DB-Zugang, neuer DB-Previewfingerprint, Product-Import oder neuer P01-Entscheid |
+
+<a id="p01-auslieferung-20261125"></a>
+## Fortschreibung — P01-Softwarelieferung veröffentlicht, 25.11.2026
+
+**Released — abgegrenzter Softwareumfang:** Der Nutzer hat ausdrücklich
+„Wenn grün mergen und für den pc bereitstellen“ beauftragt. Nach allen vier
+erfolgreichen PR-Workflows am unveränderten Head
+`2701efa08c84c603c356e0312c0aefd409f4a4b0` wurde [PR #370](https://github.com/burckhju/trading-workspace/pull/370)
+regulär mit erwarteter Head-SHA gemergt. Der tatsächliche Main-Merge
+`eb7f89a30a1772f2c140c5a11cdfb0284d80fc3c` hat denselben Tree
+`e96fd709a6525a9e7092a542570f94ff1614c7a3` wie der qualifizierte PR-Testmerge.
+Keine Schutzregel wurde umgangen oder Repository-Auto-Merge aktiviert.
+
+Die drei eigenen Main-Push-Läufe sind an genau diesen Commit gebunden:
+[Backend](https://github.com/burckhju/trading-workspace/actions/runs/45569606837)
+mit **6.445 bestandenen Tests, einer Starlette-/AnyIO-Warnung und 90,07 % Coverage**,
+[Frontend](https://github.com/burckhju/trading-workspace/actions/runs/45569606801)
+mit **2.838 Tests** und [E2E](https://github.com/burckhju/trading-workspace/actions/runs/45569606742)
+mit **allen vier Jobs erfolgreich**. Die fünf vorgesehenen Smoke-Skips sind
+durch die separaten Owner-Journeys abgedeckt. Die vier neuen PostgreSQL-
+Listingfälle liefen tatsächlich; Migration0061, Recovery und Renderer-Sandbox
+sind erfolgreich. Die PR-Coverage von 90,08 % wird nicht auf Main übertragen.
+
+Der [Publisher](https://github.com/burckhju/trading-workspace/actions/runs/45573534512)
+bestätigt am **25.11., 09:07:32 Uhr MEZ** die Veröffentlichung von
+[v1.5.55](https://github.com/burckhju/trading-workspace/tree/v1.5.55).
+Der Tagref wurde anschließend als Commit
+`eb7f89a30a1772f2c140c5a11cdfb0284d80fc3c` zurückgelesen; Main ist unverändert.
+Die [Liefernotiz](../releases/V1.5.55-P01-GETTEX-PC-DELIVERY.md) beschreibt den
+unveränderten Launcher-/Sicherungsweg. Diese spätere reine Nachweisfortschreibung
+im bestehenden Arbeitsbranch verändert den veröffentlichten Release nicht.
+
+**Genau nächste Ausführung:** Auf dem tatsächlichen PC den bestehenden Launcher
+für `v1.5.55` mit dem obigen vollständigen Commit verwenden und anschließend
+Version, Commit, Schema `20261124_0061` und Dienstbereitschaft belegen. Erst
+danach folgt der enge archivgebundene P01-Ownerread und die echte Listing-/
+Mapping-/Originalvorschau im [unveränderten Auftrag](#naechster-schnitt).
+Kein weiterer unveränderter Gesamt-, P02- oder Kandidatenexport ist nötig.
+
+**Noch nicht Observed für P01-V2:** Der letzte PC-Beleg bleibt v1.5.54 vom
+24.11. Die neue Installation, heutige Bindungen, Importfingerprint, produktive
+Anwendung und gespeicherte P01-Bewertung sind nicht belegt. Fehlende private
+Archiv-/Dateikopien und der PC-/DB-Zugang bleiben wie unten beschrieben offen.
+Die abgeschlossene Regeloriginalqualifikation wird nicht erneut geöffnet.
+Product, Market Data und Position Monitoring bleiben zuständig; sämtliche
+V2-Kriterien sowie die getrennten B04-/B57-/B58-/Frist-/B06-Anforderungen gelten.
 
 <a id="p01-lieferung-20261125"></a>
 ## Fortschreibung — P01-Lieferung konkret vorbereitet, 25.11.2026
@@ -2918,7 +2964,7 @@ ist noch kein Veröffentlichungs- oder PC-Installationsbeleg behauptet.
 | Fachliche Abnahme | Historisch freigegebener PC-Übergang ist laut Nutzerbeleg ausgeführt. Fachliche Depotabdeckung nicht abgenommen. |
 | Software-Auslieferung | Im geprüften Main und veröffentlichten Tag v1.5.52 enthalten; konkrete Softwareauslieferung, keine dadurch erteilte Gesamtfachabnahme. |
 | Betriebsnachweis | PR [#367](https://github.com/burckhju/trading-workspace/pull/367), Nutzerbeleg 19.11.2026: v1.5.51/254f0bbd… installiert, vier Dienste healthy, Readiness 200/ready, Schema 20261118_0060. Audit 18:13:12 MEZ: V2-Zyklus 18:06:42–18:07:17 MEZ, 35,307 s, running=true, last_error=null; Review und Deadline je 6 bewertet/6 Datenprobleme/0 technische Positionsfehler. Kein eigener PC-Zugriff dieser Prüfung. Historische Ursache-/Liefernachweise aus [#368](https://github.com/burckhju/trading-workspace/pull/368) bleiben erhalten. Neuer [PC-Readback vom 22.11.2026](../reviews/DEPOT_DATA_READBACK_2026-11-22.md): v1.5.52/c7db441…, Schema0060, vier offene Positionen, regulärer V2-Zyklus mit 4/4 Einstands- und 4/4 Fristdatenproblemen bei jeweils null technischen Positionsfehlern. Getrennte Produktende-/Zahlungsrollen beobachtet; exakter Parserhead/Originalupgrade und konkreter Kalenderimport dadurch nicht vollständig nachgewiesen. Frühere Sechser-/Viererbefunde werden nicht über Kennungen hinweg gleichgesetzt. Späterer [P02-Read vom 24.11.2026](../reviews/P02_SOURCE_GAP_READBACK_2026-11-24.md): tatsächliches v1.5.54/9a5e59d…, Schema0060 und vier gesunde Dienste; historischer Timeout konkret, jüngeres `BELOW_ENTRY` mit Bid um 18:21:41 Uhr MEZ. Kein neuer Gesamtzyklus-/Inventar-/Fristnachweis. |
-| Restarbeit / nächste Abhängigkeit | Gesamt-, P02- und Quellenkandidatenread sind ausgeführt und ausgewertet. **Einzige nächste Abhängigkeit:** [P01 für V2 versorgen](#naechster-schnitt). Ein historischer gettex-EUR/MUND-Bid ist isoliert belegt; konkrete Listing-/Mapping-/Importvorschau und frischer tatsächlicher PC-Verbraucherpreis fehlen. Kein erneuter unveränderter Diagnoseexport. P01-KID-Prüfung abgeschlossen: Einheit fehlt im Original, kein Parserfix. Product-/V2-Anschluss implementiert; alle vier Regeloriginale am 25.11. tatsächlich qualifiziert und fest hinterlegt. Lieferung und P01-Verbraucherabnahme bleiben offen; bestehende gettex-Konfiguration erhalten. |
+| Restarbeit / nächste Abhängigkeit | Gesamt-, P02- und Quellenkandidatenread sind ausgeführt und ausgewertet. **Einzige nächste Abhängigkeit:** [P01 für V2 versorgen](#naechster-schnitt). Ein historischer gettex-EUR/MUND-Bid ist isoliert belegt; konkrete Listing-/Mapping-/Importvorschau und frischer tatsächlicher PC-Verbraucherpreis fehlen. Kein erneuter unveränderter Diagnoseexport. P01-KID-Prüfung abgeschlossen: Einheit fehlt im Original, kein Parserfix. Product-/V2-Anschluss implementiert; alle vier Regeloriginale am 25.11. tatsächlich qualifiziert und fest hinterlegt. Die Softwarelieferung v1.5.55 ist belegt; PC-Installation und P01-Verbraucherabnahme bleiben offen. Bestehende gettex-Konfiguration erhalten. |
 | Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
 
 </details>
@@ -2969,9 +3015,9 @@ B04/B57/B58, Produktfristen und B06 bleiben getrennte Anforderungen.
    verwendet eine eigene Product-Tabelle mit Listing-Revisionskette statt
    zusätzlicher KID-Dokumentart. Product-Reader und V2 übergeben getrennte
    KID-/Einheitenprovenienz und die tatsächliche `saved.route` bereits.
-   Die [Lieferung v1.5.55 ist konkret vorbereitet](#p01-lieferung-20261125):
-   vorhandener Launcher, fünf Versionswerte und eigene Release-Head-/Main-Gates.
-   Quellenstand, Datenbankmigration und reguläre CI vor Lieferung qualifizieren;
+   Die [Lieferung v1.5.55 ist veröffentlicht](#p01-auslieferung-20261125):
+   vorhandener Launcher, fünf Versionswerte und erfolgreiche eigene Release-Head-/Main-Gates.
+   Quellenstand, Datenbankmigration und reguläre CI sind vor Lieferung qualifiziert;
    Parser v2, KID-Fakten, Frischegrenzen und historische Kontinuitätsannahme
    bleiben unverändert.
 2. Beim vorhandenen Product-Owner das konkrete MUND-Listing lesen
@@ -3044,9 +3090,10 @@ sind aus der jetzt geschlossenen Dokumentlücke abzuleiten.
 P01-gettex-Quellendeckung und abgeschlossene P01-KID-Ursachenprüfung;
 Implemented — ergänzender aktueller Listing-Einheitenbeleg mit Product-Import,
 passivem Reader, Migration0061 und V2-Routenanschluss; am 25.11. alle vier
-echten Regeloriginale qualifiziert und fest hinterlegt. Verbleibend sind die
-Veröffentlichung und PC-Installation der inzwischen konkret vorbereiteten
-Lieferung v1.5.55, konkrete P01-Listing-/Mapping-/Importvorschau und tatsächliche
+echten Regeloriginale qualifiziert und fest hinterlegt. Released — v1.5.55 ist
+nach eigener grüner PR-/Main-CI auf dem belegten Tagcommit veröffentlicht.
+Verbleibend sind die tatsächliche PC-Installation, konkrete archivgebundene
+P01-Listing-/Mapping-/Importvorschau und tatsächliche
 Verbraucherabnahme. Originalqualifikation allein erhöht keine Depotabdeckung.
 Die reine Collectorfertigstellung ist abgeschlossen. Zuständige Owner bleiben
 Product, Market Data und Position Monitoring; kein neuer Regelumfang wird freigegeben.
