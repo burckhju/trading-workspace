@@ -4,14 +4,59 @@
 
 | Feld | Wert |
 |---|---|
-| Revision | 25.11.2026: P01-Softwarelieferung v1.5.55 nach ausdrücklicher Nutzerfreigabe und vollständig grüner PR-/Main-CI veröffentlicht. Merge und unveränderlicher Tagcommit sind zurückgelesen. PC-Installation, aktuelle P01-Ownerbindung, echte DB-Vorschau und Verbraucherabnahme bleiben im selben Auftrag offen. |
+| Revision | 25.11.2026: P01-Softwarelieferung v1.5.55 veröffentlicht und anschließend durch den übermittelten Launcher-/Compose-/Alembic-Auszug auf dem PC belegt. Aktuelle archivgebundene P01-Ownerbindung, echte DB-Vorschau und Verbraucherabnahme bleiben im selben Auftrag offen. |
 | Erstprüfung | 19.11.2026, 19:31:38 Uhr MEZ (Europe/Berlin), auf `254f0bbd52ab42e0120d381e915dc96c1118796c` / `v1.5.51` |
 | Fortschreibung | 20.11.2026, Beginn 13:46:04 Uhr MEZ; Main-/Release-Delta, tatsächliche CI, PR- und Betriebsnachweise erneut geprüft |
 | Geprüfter Produktstand | Ursprünglicher Daten-/Readervertrag auf `c7db441de36297a98d47cdf28c64b4e5d9994692` / v1.5.52; der ergänzende P01-Anschluss und P02-Resolverfix sind auf Release-Head `2701efa08c84c603c356e0312c0aefd409f4a4b0` und dem unten genannten Main jeweils eigenständig qualifiziert. Die Oberfläche behält ihre eigenen #372-Nachweise. |
 | Aktueller Main | `eb7f89a30a1772f2c140c5a11cdfb0284d80fc3c`, Merge #370 vom 25.11.2026, 08:37:31 Uhr MEZ, `VERSION=1.5.55`. Tag v1.5.55 wurde nach vollständiger Main-CI um 09:07:32 Uhr MEZ auf genau diesem Commit veröffentlicht. Main und Tag sind kein Nachweis einer PC-Installation. |
-| Tatsächlicher PC | v1.5.54 auf `9a5e59dac3bb219cbc40641e62e75871eb2ed131`, zuletzt im Quellenkandidatenpaket vom 24.11.2026, 20:33 Uhr MEZ, vor/nach verifiziert; letzte vollständige Inventur weiterhin vom 22.11. |
+| Tatsächlicher PC | Nutzerbeleg vom 25.11.2026: v1.5.55 auf `eb7f89a30a1772f2c140c5a11cdfb0284d80fc3c`, Schema `20261124_0061 (head)`, vier Dienste healthy, Readiness 200 und Bereitschaft ready. Letzter enger Quellenkandidatenread weiterhin vom 24.11., letzte vollständige Inventur vom 22.11. |
 | Funktion | Einzige maßgebliche Quelle des aktuellen Aufgabenstatus; bestehende PB-/FT-/M-Kennungen und Owner bleiben erhalten |
-| Prüfgrenze | Vollständiger Checkout, Quellprüfung und datierte PC-/Originalbelege bleiben erhalten; am 25.11. zusätzlich Release-Head, tatsächlicher Main-Merge, deren eigene CI sowie Publisher und Tag geprüft. Weiterhin kein interaktiver PC-/DB-Zugang, neuer DB-Previewfingerprint, Product-Import oder neuer P01-Entscheid |
+| Prüfgrenze | Vollständiger Checkout, Quellprüfung und datierte PC-/Originalbelege bleiben erhalten; am 25.11. zusätzlich Release-Head, tatsächlicher Main-Merge, deren eigene CI, Publisher/Tag und übermittelter PC-Installationsauszug geprüft. Kein eigener interaktiver PC-/DB-Zugang, neuer DB-Previewfingerprint, Product-Import oder neuer P01-Entscheid |
+
+<a id="p01-pc-installation-20261125"></a>
+## Fortschreibung — P01-Anschluss auf dem PC installiert, 25.11.2026
+
+**Observed — Installation:** Der Nutzer hat den tatsächlichen Launcher-,
+Compose- und Alembic-Auszug nach dem Update übermittelt. Er zeigt **v1.5.55**
+auf `eb7f89a30a1772f2c140c5a11cdfb0284d80fc3c`,
+**`20261124_0061 (head)`**, Backend, Datenbank, Frontend und Issuer-Renderer
+jeweils **healthy**, **Readiness 200** und **Bereitschaft ready**.
+Die drei Anwendungsimages tragen den passenden Commit im Migrationstag.
+Main, Tag und Arbeitsbranch wurden erneut zurückgelesen; der veröffentlichte
+Softwarestand ist unverändert. Die frühere offene PC-Installation ist damit
+geschlossen. Der Beleg stammt vom Nutzer, nicht aus einem eigenen Fernzugriff;
+eine genaue Abschlusszeit wird aus keinem Sicherungsverzeichnis abgeleitet.
+Private Rechner- und Verzeichnispfade werden hier nicht übernommen.
+
+**Genau nächste Ausführung:** Aktuelle P01-Position, Produkt-, Terms-, KID-,
+Listing- und ergänzende Einheitenrevision aus dem ursprünglichen privaten
+Archiv binden und am installierten PC lesen. Die alten Gesamt-, P02- und
+Quellenkandidatendiagnosen bleiben abgeschlossen. Der vorhandene Collector
+besitzt für diese noch ungebundene Einzelposition keinen passenden engen
+CLI-Modus; sein Gesamtkandidatenmodus würde weitere Positionen neu lesen.
+Der [enge P01-Ownerread](../technical/P01_GETTEX_OWNER_READ.md) verwendet deshalb
+dessen vorhandene Archivprüfung, Installationsbindung und einzige
+`REPEATABLE READ READ ONLY`-Transaktion für ausschließlich P01. Er ergänzt
+vorhandene Product-Reader und eine begrenzte Projektion der Betriebsparameter.
+Es entsteht ein privates JSON außerhalb des Programmordners. Der vorbereitete
+Hostaufruf benötigt kein weiteres Anwendungsupdate und ist noch kein am PC
+ausgeführter Read, Mappingpreview oder Originalimportpreview.
+
+**Lokale Helferprüfung:** Sieben gezielte synthetische Tests sind erfolgreich;
+Ruff 0.15.1, Black 26.1.0, CLI-Hilfe und Diffprüfung ebenfalls. Der unabhängige
+Review fand nach Korrektur der begrenzten Fehlercodeausgabe keine blockierenden
+Befunde. Geprüft sind Archivisolation, Bindungswechsel, gezielte Owner-Aufrufe,
+ausgewählte Settings, Dateischutz sowie Release-/Schema-/Installationsguards.
+Der installierte Collector bleibt bytegleich; Anwendung, Schema und
+veröffentlichter Tag werden nicht verändert. Dies ist eine gesonderte
+Hosthelferqualifikation und keine Übertragung der Release-CI auf neuen Code.
+
+**Verbraucherabnahme bleibt offen:** Der Installationsauszug enthält keine
+aktuellen P01-Bindungen, keine angewendete Product-Evidenz, keine ausgewählte
+Route und keine neue gespeicherte V2-Bewertung. Ein Bid samt Quellenalter,
+zugehörige Sitzungen sowie regelmäßiger Refresh, Cache und Wiederanlauf sind
+weiterhin am tatsächlichen Verbraucher nachzuweisen. Bestehende Owner und
+sämtliche Kriterien des [einen Auftrags](#naechster-schnitt) bleiben erhalten.
 
 <a id="p01-auslieferung-20261125"></a>
 ## Fortschreibung — P01-Softwarelieferung veröffentlicht, 25.11.2026
@@ -44,17 +89,17 @@ Die [Liefernotiz](../releases/V1.5.55-P01-GETTEX-PC-DELIVERY.md) beschreibt den
 unveränderten Launcher-/Sicherungsweg. Diese spätere reine Nachweisfortschreibung
 im bestehenden Arbeitsbranch verändert den veröffentlichten Release nicht.
 
-**Genau nächste Ausführung:** Auf dem tatsächlichen PC den bestehenden Launcher
-für `v1.5.55` mit dem obigen vollständigen Commit verwenden und anschließend
-Version, Commit, Schema `20261124_0061` und Dienstbereitschaft belegen. Erst
-danach folgt der enge archivgebundene P01-Ownerread und die echte Listing-/
-Mapping-/Originalvorschau im [unveränderten Auftrag](#naechster-schnitt).
-Kein weiterer unveränderter Gesamt-, P02- oder Kandidatenexport ist nötig.
+**Inzwischen ausgeführte PC-Lieferung:** Der anschließende
+[Nutzerbeleg vom 25.11.](#p01-pc-installation-20261125) schließt die hier
+ursprünglich noch offene Installation. Der nächste enge archivgebundene
+P01-Ownerread und die echte Listing-/Mapping-/Originalvorschau gehören zum
+[unveränderten Auftrag](#naechster-schnitt). Kein weiterer unveränderter
+Gesamt-, P02- oder Kandidatenexport ist nötig.
 
-**Noch nicht Observed für P01-V2:** Der letzte PC-Beleg bleibt v1.5.54 vom
-24.11. Die neue Installation, heutige Bindungen, Importfingerprint, produktive
-Anwendung und gespeicherte P01-Bewertung sind nicht belegt. Fehlende private
-Archiv-/Dateikopien und der PC-/DB-Zugang bleiben wie unten beschrieben offen.
+**Noch nicht Observed für P01-V2:** Heutige Bindungen, Importfingerprint,
+produktive Anwendung und gespeicherte P01-Bewertung sind nicht belegt.
+Fehlende private Archiv-/Dateikopien im Arbeitsraum und der eigene PC-/DB-Zugang
+bleiben wie unten beschrieben offen.
 Die abgeschlossene Regeloriginalqualifikation wird nicht erneut geöffnet.
 Product, Market Data und Position Monitoring bleiben zuständig; sämtliche
 V2-Kriterien sowie die getrennten B04-/B57-/B58-/Frist-/B06-Anforderungen gelten.
@@ -168,8 +213,9 @@ bereitgestellt. Zusammen mit BSW sind sie nun als echtes Originalpaket
 [qualifiziert](#p01-originalpaket-20261125); das feste Register ist gefüllt.
 Keine erneute KID-Abfrage oder Depotinventur ist für diese Ursachenklärung nötig.
 
-**Noch kein Observed für P01-V2:** Die bisherige PC-Installation enthält diesen
-Anschluss nicht. Konkrete Listing-/Mapping-/Importvorschau
+**Noch kein Observed für P01-V2:** Die am 24.11. belegte PC-Installation enthielt
+diesen Anschluss noch nicht; die [Installation vom 25.11.](#p01-pc-installation-20261125)
+schließt diese Lieferlücke. Konkrete Listing-/Mapping-/Importvorschau
 und frischer gespeicherter Verbraucherentscheid bleiben Bestandteile desselben
 [einzigen Auftrags](#naechster-schnitt). Technische Tests ersetzen diese
 Betriebsabnahme nicht.
@@ -2955,8 +3001,8 @@ ist noch kein Veröffentlichungs- oder PC-Installationsbeleg behauptet.
 | Nachweisfeld | Einordnung |
 |---|---|
 | Zuordnung | M11: Betrieb; Ziel A. Bereich/Querschnitt: Querschnitt: technische Qualität/Betrieb. Bestehender Bezug: bestehende Betriebs-/Releaseverantwortung. Lieferziel: A. |
-| Arbeitsstatus | Observed — tatsächliches v1.5.54, Schema, gesunde Dienste und enger P02-Verbraucherread am 24.11.; letzte Gesamtinventur/Zyklusdiagnose am 22.11. auf v1.5.52; Business Review — weitere Regelabdeckung und vollständige Originalupgrade-/Importabnahme. |
-| Abgeschlossener Teilumfang | Vollständiger privater Readback vom 22.11.2026: c7db441…/v1.5.52, Schema0060, vier gesunde Dienste, 30/30 GETs und vollständiges Vierer-Inventar. V2-Ausführung mit 4/4 Datenproblemen in beiden Prüfpfaden belegt. Die frühere fehlende PC-Installationsbestätigung ist geschlossen. Am 24.11. ist v1.5.54/9a5e59d… separat verifiziert; der enge P02-Collector liefert historischen Gap und aktuellen gespeicherten V2-Entscheid mit Bid. Kein erneuter P02-Export erforderlich. |
+| Arbeitsstatus | Observed — tatsächliche Installation v1.5.55/eb7f89a…, Schema0061, vier gesunde Dienste und Bereitschaft ready im Nutzerbeleg vom 25.11.; enger P02-Verbraucherread am 24.11. auf v1.5.54; letzte Gesamtinventur/Zyklusdiagnose am 22.11. auf v1.5.52; Business Review — weitere Regelabdeckung und vollständige Originalupgrade-/Importabnahme. |
+| Abgeschlossener Teilumfang | Vollständiger privater Readback vom 22.11.2026: c7db441…/v1.5.52, Schema0060, vier gesunde Dienste, 30/30 GETs und vollständiges Vierer-Inventar. V2-Ausführung mit 4/4 Datenproblemen in beiden Prüfpfaden belegt. Am 24.11. ist v1.5.54/9a5e59d… separat verifiziert; der enge P02-Collector liefert historischen Gap und aktuellen gespeicherten V2-Entscheid mit Bid. Am 25.11. ist die anschließende v1.5.55-Installation mit Schema0061 und gesunden Diensten im Launcher-/Compose-/Alembic-Auszug belegt. Kein erneuter P02-Export erforderlich. |
 | Soll / Nicht-Soll | **Soll:** JMBbot mit tatsächlich installierter Version/Commit, Schema, Compose-Provenienz, Daten-/Monitoring-/Zustellzuständen und Nachweiszeitpunkt identifizieren. **Nicht-Soll:** Keine Diagnoseanleitung als erfolgreichen Lauf ausgeben; kein Monitoring-Einmallauf, Deployment oder Nachricht. |
 | Befundklasse / Lückenart | Installation und datierte Verbraucherbefunde beobachtet; P02-Journalergänzung abgeschlossen. **Art der Restarbeit:** weitere Datenversorgung und gezielte Quellen-/Produktbindung, keine Wiederholung des pauschalen Betriebsnachweises. |
 | Implementierung / Consumer | Bestehender Launcher und [activate-indicative-monitoring.py](../../scripts/activate-indicative-monitoring.py) (prepare/apply) liefern zentralen kontrollierten Übergang. Passiver Runtime-Status und die beiden READ ONLY-Statusreader sind vorhanden; Diagnoseanleitung ist kein eigener Lauf. |
@@ -2964,7 +3010,7 @@ ist noch kein Veröffentlichungs- oder PC-Installationsbeleg behauptet.
 | Fachliche Abnahme | Historisch freigegebener PC-Übergang ist laut Nutzerbeleg ausgeführt. Fachliche Depotabdeckung nicht abgenommen. |
 | Software-Auslieferung | Im geprüften Main und veröffentlichten Tag v1.5.52 enthalten; konkrete Softwareauslieferung, keine dadurch erteilte Gesamtfachabnahme. |
 | Betriebsnachweis | PR [#367](https://github.com/burckhju/trading-workspace/pull/367), Nutzerbeleg 19.11.2026: v1.5.51/254f0bbd… installiert, vier Dienste healthy, Readiness 200/ready, Schema 20261118_0060. Audit 18:13:12 MEZ: V2-Zyklus 18:06:42–18:07:17 MEZ, 35,307 s, running=true, last_error=null; Review und Deadline je 6 bewertet/6 Datenprobleme/0 technische Positionsfehler. Kein eigener PC-Zugriff dieser Prüfung. Historische Ursache-/Liefernachweise aus [#368](https://github.com/burckhju/trading-workspace/pull/368) bleiben erhalten. Neuer [PC-Readback vom 22.11.2026](../reviews/DEPOT_DATA_READBACK_2026-11-22.md): v1.5.52/c7db441…, Schema0060, vier offene Positionen, regulärer V2-Zyklus mit 4/4 Einstands- und 4/4 Fristdatenproblemen bei jeweils null technischen Positionsfehlern. Getrennte Produktende-/Zahlungsrollen beobachtet; exakter Parserhead/Originalupgrade und konkreter Kalenderimport dadurch nicht vollständig nachgewiesen. Frühere Sechser-/Viererbefunde werden nicht über Kennungen hinweg gleichgesetzt. Späterer [P02-Read vom 24.11.2026](../reviews/P02_SOURCE_GAP_READBACK_2026-11-24.md): tatsächliches v1.5.54/9a5e59d…, Schema0060 und vier gesunde Dienste; historischer Timeout konkret, jüngeres `BELOW_ENTRY` mit Bid um 18:21:41 Uhr MEZ. Kein neuer Gesamtzyklus-/Inventar-/Fristnachweis. |
-| Restarbeit / nächste Abhängigkeit | Gesamt-, P02- und Quellenkandidatenread sind ausgeführt und ausgewertet. **Einzige nächste Abhängigkeit:** [P01 für V2 versorgen](#naechster-schnitt). Ein historischer gettex-EUR/MUND-Bid ist isoliert belegt; konkrete Listing-/Mapping-/Importvorschau und frischer tatsächlicher PC-Verbraucherpreis fehlen. Kein erneuter unveränderter Diagnoseexport. P01-KID-Prüfung abgeschlossen: Einheit fehlt im Original, kein Parserfix. Product-/V2-Anschluss implementiert; alle vier Regeloriginale am 25.11. tatsächlich qualifiziert und fest hinterlegt. Die Softwarelieferung v1.5.55 ist belegt; PC-Installation und P01-Verbraucherabnahme bleiben offen. Bestehende gettex-Konfiguration erhalten. |
+| Restarbeit / nächste Abhängigkeit | Gesamt-, P02- und Quellenkandidatenread sind ausgeführt und ausgewertet. **Einzige nächste Abhängigkeit:** [P01 für V2 versorgen](#naechster-schnitt), beginnend mit dem engen archivgebundenen P01-Ownerread. Ein historischer gettex-EUR/MUND-Bid ist isoliert belegt; konkrete Listing-/Mapping-/Importvorschau und frischer tatsächlicher PC-Verbraucherpreis fehlen. Kein erneuter unveränderter Diagnoseexport. P01-KID-Prüfung abgeschlossen: Einheit fehlt im Original, kein Parserfix. Product-/V2-Anschluss implementiert; alle vier Regeloriginale am 25.11. tatsächlich qualifiziert und fest hinterlegt. Softwarelieferung und PC-Installation v1.5.55 sind belegt; P01-Verbraucherabnahme bleibt offen. Bestehende gettex-Konfiguration erhalten. |
 | Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
 
 </details>
@@ -3017,10 +3063,14 @@ B04/B57/B58, Produktfristen und B06 bleiben getrennte Anforderungen.
    KID-/Einheitenprovenienz und die tatsächliche `saved.route` bereits.
    Die [Lieferung v1.5.55 ist veröffentlicht](#p01-auslieferung-20261125):
    vorhandener Launcher, fünf Versionswerte und erfolgreiche eigene Release-Head-/Main-Gates.
+   Die anschließende [PC-Installation](#p01-pc-installation-20261125) ist mit
+   passendem Commit, Schema0061, vier gesunden Diensten und ready belegt.
    Quellenstand, Datenbankmigration und reguläre CI sind vor Lieferung qualifiziert;
    Parser v2, KID-Fakten, Frischegrenzen und historische Kontinuitätsannahme
    bleiben unverändert.
-2. Beim vorhandenen Product-Owner das konkrete MUND-Listing lesen
+2. Im [engen archivgebundenen P01-Ownerread](../technical/P01_GETTEX_OWNER_READ.md)
+   aktuelle Position, Produkt-, Terms-, KID- und Listingrevisionen lesen.
+   Beim vorhandenen Product-Owner das konkrete MUND-Listing prüfen
    (`GET /api/v1/warrants/{warrant_id}/listings`). Ein fehlendes Listing nur
    mit passendem Produkt-/MIC-/Währungsbeleg über `WarrantService.add_listing`
    ergänzen. `configure_gettex_warrant` zunächst ohne `--apply` verwenden;
@@ -3046,7 +3096,7 @@ BSW wieder bytegleich vorhanden; die drei Börsen-Dateikopien, das private
 P01-Referenzarchiv, die vollständige gettex-Datei und der tatsächliche
 PC-/DB-Zugang fehlen weiterhin, wie im [Liefernachtrag](#p01-lieferung-20261125)
 konkret abgegrenzt. Fehlende Kopien sind keine neue fachliche Quellenlücke.
-Nach geprüfter Lieferung werden nur aktuelle P01-Produkt-/Listing-/KID-Bindungen
+Nach belegter Lieferung und Installation werden aktuelle P01-Produkt-/Listing-/KID-Bindungen
 für die echte Vorschau sowie die vollständige lokale gettex-Datei benötigt.
 Der [vorbereitete Ablauf](../reviews/GETTEX_LISTING_UNIT_ORIGINALS_2026-11-25.md#5-vorbereitete-p01-import--und-mappingvorschau)
 verwendet vorhandene Owner und Commands; ohne echte Datenbankbindung wird
@@ -3092,8 +3142,10 @@ Implemented — ergänzender aktueller Listing-Einheitenbeleg mit Product-Import
 passivem Reader, Migration0061 und V2-Routenanschluss; am 25.11. alle vier
 echten Regeloriginale qualifiziert und fest hinterlegt. Released — v1.5.55 ist
 nach eigener grüner PR-/Main-CI auf dem belegten Tagcommit veröffentlicht.
-Verbleibend sind die tatsächliche PC-Installation, konkrete archivgebundene
-P01-Listing-/Mapping-/Importvorschau und tatsächliche
+Observed — anschließende PC-Installation auf demselben Commit, Schema0061,
+vier gesunde Dienste und ready im Nutzerbeleg vom 25.11.
+Verbleibend sind die konkrete archivgebundene
+P01-Owner-/Listing-/Mapping-/Importvorschau und tatsächliche
 Verbraucherabnahme. Originalqualifikation allein erhöht keine Depotabdeckung.
 Die reine Collectorfertigstellung ist abgeschlossen. Zuständige Owner bleiben
 Product, Market Data und Position Monitoring; kein neuer Regelumfang wird freigegeben.
