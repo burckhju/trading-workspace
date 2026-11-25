@@ -15,10 +15,11 @@ ein Parserfix ist unbegründet. Das tatsächlich aktuell verlinkte gettex-Regelw
 liefert eine ergänzende Quote-Konvention; ein gesonderter aktueller
 Listing-Einheitenbeleg und sein
 [Product-/V2-Anschluss](P01_LISTING_UNIT_IMPLEMENTATION_2026-11-24.md) sind
-in PR #370 implementiert. Drei Regel-PDFs fehlen trotz Prüfung der verlinkten
-offiziellen Bezugswege als Originalbytes (hier HTTP403); die BSW-Klassifikation
-liegt vollständig vor. Das Produktionsregister bleibt leer. Ein Importweg
-belegt noch keinen qualifizierten Original- oder PC-Verbraucherbestand.
+in PR #370 implementiert. Die am 24.11. noch fehlenden drei Regel-PDFs sind
+am 25.11. als Nutzeruploads bereitgestellt und zusammen mit dem BSW-Original
+[inhaltlich und technisch qualifiziert](GETTEX_LISTING_UNIT_ORIGINALS_2026-11-25.md).
+Das feste Register enthält genau dieses Originalpaket. Das schließt die
+Regeldokumentlücke, noch nicht die konkrete P01-Listing-/Mapping-/Verbraucherkette.
 Die nachfolgende Neun-Emittenten- und Tarifübersicht behält ihren Prüfstand
 vom 20.11.; andere Angebote wurden dadurch nicht neu verifiziert.
 

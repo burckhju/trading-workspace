@@ -1,0 +1,101 @@
+{
+  "schema": "gettex-listing-rule-original-qualification-v1",
+  "result": "QUALIFIED_RULE_ORIGINALS_ONLY",
+  "checked_at": "2026-11-25T05:09:45.677090+00:00",
+  "rule_set_version": "gettex-mund-eur-equity-call-unit-20261125-v1",
+  "rule_set_fingerprint": "56ab502378fd58ff2400deffef9b566ac15392ce991e773029ee899157bbee6c",
+  "observed_at": "2026-11-25T05:07:22+00:00",
+  "effective_from": null,
+  "scope": {
+    "venue_mic": "MUND",
+    "currency": "EUR",
+    "product_class": "CALL_WARRANT_ON_EQUITY"
+  },
+  "originals": [
+    {
+      "role": "EXCHANGE_RULES",
+      "filename": "261102_Boersenordnung.pdf",
+      "bytes": 343776,
+      "pages": 54,
+      "printed_version_date": "2026-11-02",
+      "sha256": "8cb44437079ca807becd54fc3742c76b26cd0ee32cda724d5b2fc97d8c7315d8",
+      "source_reference": "https://www.gettex.de/fileadmin/Regelwerke/261102_Boersenordnung.pdf",
+      "acquisition": "USER_SUPPLIED_ORIGINAL",
+      "server_byte_comparison": "NOT_PERFORMED"
+    },
+    {
+      "role": "OPEN_MARKET_RULES",
+      "filename": "180103_Handelsordnung_Freiverkehr.pdf",
+      "bytes": 11755,
+      "pages": 2,
+      "printed_version_date": "2017-01-03",
+      "sha256": "b27b0659d8cb9e6fb28ff1ed61311bfe40d1e99d2e4d96b7ef305dda9d8b48fb",
+      "source_reference": "https://www.gettex.de/fileadmin/Regelwerke/180103_Handelsordnung_Freiverkehr.pdf",
+      "acquisition": "USER_SUPPLIED_ORIGINAL",
+      "server_byte_comparison": "NOT_PERFORMED"
+    },
+    {
+      "role": "EXECUTION_RULES",
+      "filename": "250117_Ausfuehrungsbestimmungen.pdf",
+      "bytes": 229466,
+      "pages": 25,
+      "printed_version_date": "2025-01-17",
+      "sha256": "fb59419ceb252792c924ddaeb850c078d5b64c78a50d27f6ca4ccb25176a26fa",
+      "source_reference": "https://www.gettex.de/fileadmin/user_upload/www.gettex.de/Downloads/Regelwerk/250117_Ausfuehrungsbestimmungen.pdf",
+      "acquisition": "USER_SUPPLIED_ORIGINAL",
+      "server_byte_comparison": "NOT_PERFORMED"
+    },
+    {
+      "role": "PRODUCT_CLASSIFICATION",
+      "filename": "24_07_11_BSW_Produktklassifizierung_Kurzversion_dt_5923f67334.pdf",
+      "bytes": 2835859,
+      "pages": 4,
+      "printed_version_date": null,
+      "sha256": "5c776afd4194f20786d31f7f7e019bdf98b6171dbd0a8e11904672bad6d9b5b1",
+      "source_reference": "https://www.derbsw.de/static/c30a7862c1e493be34b39789823b76d0/24_07_11_BSW_Produktklassifizierung_Kurzversion_dt_5923f67334.pdf",
+      "acquisition": "PUBLIC_ORIGINAL_HTTP_200",
+      "server_byte_comparison": "MATCHES_PREVIOUS_PIN"
+    }
+  ],
+  "negative_checks": [
+    {
+      "case": "one_changed_byte_EXCHANGE_RULES",
+      "result": "REJECTED_AS_REQUIRED",
+      "reason": "LISTING_UNIT_RULE_ORIGINALS_UNQUALIFIED"
+    },
+    {
+      "case": "one_changed_byte_OPEN_MARKET_RULES",
+      "result": "REJECTED_AS_REQUIRED",
+      "reason": "LISTING_UNIT_RULE_ORIGINALS_UNQUALIFIED"
+    },
+    {
+      "case": "one_changed_byte_EXECUTION_RULES",
+      "result": "REJECTED_AS_REQUIRED",
+      "reason": "LISTING_UNIT_RULE_ORIGINALS_UNQUALIFIED"
+    },
+    {
+      "case": "one_changed_byte_PRODUCT_CLASSIFICATION",
+      "result": "REJECTED_AS_REQUIRED",
+      "reason": "LISTING_UNIT_RULE_ORIGINALS_UNQUALIFIED"
+    },
+    {
+      "case": "swapped_source_roles",
+      "result": "REJECTED_AS_REQUIRED",
+      "reason": "LISTING_UNIT_RULE_ORIGINALS_UNQUALIFIED"
+    },
+    {
+      "case": "missing_original",
+      "result": "REJECTED_AS_REQUIRED",
+      "reason": "LISTING_UNIT_RULE_ORIGINALS_INCOMPLETE"
+    },
+    {
+      "case": "before_observed_rules",
+      "result": "REJECTED_AS_REQUIRED",
+      "reason": "LISTING_UNIT_RULE_NOT_YET_KNOWN"
+    }
+  ],
+  "complete_gettex_scan_performed": false,
+  "database_preview_performed": false,
+  "database_import_performed": false,
+  "production_quote_qualification": false
+}

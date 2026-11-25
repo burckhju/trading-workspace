@@ -2650,9 +2650,15 @@ geprüft, benötigt aber nicht täglich einen neuen Listingbeleg. Aktuelle Währ
 Identität, Produktklasse und harte historische Sperren werden nicht ersetzt.
 Die Qualität bleibt `CURRENT_UNIT_HISTORY_ASSUMED`; Quotealter, Sitzungen,
 V1/B04/B57/B58, Produktfristen und B06 werden nicht verändert. Der
-[Umsetzungs- und Originalnachweis](../reviews/P01_LISTING_UNIT_IMPLEMENTATION_2026-11-24.md)
-benennt ausdrücklich das noch leere Produktionsregister und die fehlende
-P01-Betriebsabnahme; ein ausführbarer Importweg ist keine Quellenqualifikation.
+[Umsetzungsnachweis](../reviews/P01_LISTING_UNIT_IMPLEMENTATION_2026-11-24.md)
+und die [Originalqualifikation vom 25.11.](../reviews/GETTEX_LISTING_UNIT_ORIGINALS_2026-11-25.md)
+trennen das inzwischen mit vier echten Originalen belegte feste Regelpaket
+von der weiterhin fehlenden P01-Betriebsabnahme. Das Paket
+`gettex-mund-eur-equity-call-unit-20261125-v1` hat den beobachteten Stand
+`2026-11-25T05:07:22Z` und kein behauptetes historisches `effective_from`.
+Diese Grenze betrifft das aktuelle Verbraucher-Kursereignis; ein älteres,
+vollständig geprüftes Pretrade-Original bleibt als gesonderter Listingbeleg
+verwendbar und wird dadurch nicht zu einer aktuellen Verbraucherquote.
 
 Die zusätzliche Referenzkalenderbasis verwendet den im aktuellen Original-KID
 genannten Basiswert und Referenzmarkt. Sie kennzeichnet

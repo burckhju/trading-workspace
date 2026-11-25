@@ -12,9 +12,11 @@
 > bestätigt das P01-KID bytegleich zur PC-Revision: Preiseinheit fehlt im
 > Original, kein Parserfehler. Ein ergänzender aktueller gettex-Listingbeleg
 > ist als [Product-/V2-Anschluss](../reviews/P01_LISTING_UNIT_IMPLEMENTATION_2026-11-24.md)
-> mit eigener Migration0061 im PR-Arbeitsstand implementiert. Drei erforderliche
-> Regel-PDFs fehlen als Originalbytes; das Produktionsregister bleibt leer.
-> Quellenqualifikation und tatsächlicher P01-Verbraucherentscheid sind offen.
+> mit eigener Migration0061 im PR-Arbeitsstand implementiert. Die
+> [Originalqualifikation vom 25.11.](../reviews/GETTEX_LISTING_UNIT_ORIGINALS_2026-11-25.md)
+> schließt die drei Nutzer-PDFs und BSW ein; das feste Regelpaket ist anhand
+> echter Bytes qualifiziert und hinterlegt. Lieferung, konkrete P01-Vorschau
+> und tatsächlicher Verbraucherentscheid bleiben getrennt nachzuweisen.
 > Der [Collector-Nachweis](../reviews/DEPOT_SOURCE_COVERAGE_COLLECTOR_2026-11-24.md)
 > trennt technische Qualifikation, CI-Korrektur und tatsächlichen Read.
 > Arbeitsstatus und genau ein aktueller P01-Auftrag bleiben im Backlog.
@@ -48,7 +50,7 @@
 | Feld | Nachweisstand |
 |---|---|
 | Erstprüfung | 19.11.2026, Beginn 19:31:38 Uhr MEZ / 18:31:38 UTC, auf v1.5.51 |
-| Fortschreibung | 24.11.2026: P02-Read, Quellenkandidatenread, gettex-Originaldateiprobe und freigegebene P01-KID-Prüfung; fehlende KID-Einheit eindeutig, ergänzender Product-/V2-Listinganschluss implementiert. Drei Regeloriginale, Quellenqualifikation und PC-Abnahme bleiben offen. Aktuelle Installation v1.5.54 bestätigt; Gesamtinventur vom 22.11. und datierte CI-/Produktbelege behalten ihre eigenen Grenzen |
+| Fortschreibung | 25.11.2026: Drei Nutzer-PDFs und BSW-Original geprüft; festes gettex-MUND/EUR-Paket qualifiziert und hinterlegt. P01-KID-Ursache bleibt eindeutig; ergänzender Product-/V2-Anschluss implementiert. Lieferung, echte Listing-/Mapping-/Importvorschau und PC-Abnahme bleiben offen. Letzter PC-Nachweis v1.5.54 vom 24.11.; Gesamtinventur vom 22.11. und frühere CI-Belege behalten ihre Grenzen |
 | Geprüfte Produktbasis | `c7db441de36297a98d47cdf28c64b4e5d9994692` / v1.5.52 für den ursprünglichen Datenvertrag und die unten datierten Main-Tests; relevante Provider-/Market-Data-/V2-Pfade bis 9a5e59d… unverändert |
 | Aktueller Main und getrennt belegter PC | `9a5e59dac3bb219cbc40641e62e75871eb2ed131`, `VERSION=1.5.54`, Merge #373 vom 22.11.2026, 21:35:28 Uhr MEZ; dieselbe tatsächliche PC-Installation im privaten Paket vom 24.11. vor/nach geprüft |
 | Früherer Dokument-Main | `6c0f9160b91bee4c6c45849c9c47d4c4b5a3bf56`, Merge #369 vom 20.11.2026, 15:01:45 Uhr MEZ; historische reine Dokumentkonsolidierung |

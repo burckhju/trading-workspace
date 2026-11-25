@@ -461,8 +461,11 @@ mit der PC-Revision überein und enthält keine ausdrückliche Preiseinheit.
 würde das fehlende Feld nicht ergänzen. Der zusätzliche aktuelle
 [gettex-Listing-Einheitenbeleg](../reviews/P01_LISTING_UNIT_IMPLEMENTATION_2026-11-24.md)
 besitzt inzwischen einen additiven Product-/V2-Anschluss mit Migration0061.
-Drei offizielle Regel-PDFs fehlen als Originalbytes; das Quellenregister bleibt
-bis zu ihrer Prüfung leer. Der vorhandene historische Maßstabsimport und der
+Die [Originalqualifikation vom 25.11.](../reviews/GETTEX_LISTING_UNIT_ORIGINALS_2026-11-25.md)
+ist mit den drei gelieferten Börsen-PDFs und der vollständigen BSW-Klassifikation
+abgeschlossen. Der feste Katalog enthält genau das geprüfte MUND/EUR-Paket;
+ein tatsächlicher Product-Import ist daraus noch nicht abzuleiten.
+Der vorhandene historische Maßstabsimport und der
 XSTU-Fristimport werden dafür nicht zweckentfremdet. Der neue lokale
 `import_listing_unit_originals`-Helfer prüft standardmäßig nur lesend;
 `--apply` verlangt Request-ID und Previewfingerprint. Der passive Read
@@ -470,6 +473,15 @@ XSTU-Fristimport werden dafür nicht zweckentfremdet. Der neue lokale
 zeigt Herkunft und konkrete Gründe. Beide Wege wählen keine Positionsquelle.
 Der Quellen-/Importnachweis und die spätere aktuelle P01-V2-Abnahme bleiben
 getrennt; die belegte PC-Installation v1.5.54 enthält diesen Anschluss noch nicht.
+
+Die im [vorbereiteten P01-Ablauf](../reviews/GETTEX_LISTING_UNIT_ORIGINALS_2026-11-25.md#5-vorbereitete-p01-import--und-mappingvorschau)
+benannten aktuellen Listing-/KID-IDs müssen aus dem tatsächlichen Ownerbestand
+kommen. Der Originalimport kann erst mit installiertem Anschluss/Schema0061,
+vier passenden Originalen und einer vollständigen lokalen gettex-Datei als
+echte DB-Vorschau laufen. Ein alter Hash oder ein JSON-Zielauszug ersetzt den
+Vollscan nicht. Die alte Datei kann Listing-Mitgliedschaft belegen; der aktuelle
+V2-Kurs muss nach dem Regelbeobachtungsstand vom 25.11., 06:07:22 Uhr MEZ liegen
+und die unveränderte Altersgrenze erfüllen. Kein neuer Gesamtexport erforderlich.
 
 Der Modus `--source-coverage-from` liest die heutigen gespeicherten Fakten
 zu den **im ursprünglichen vollständigen Archiv noch nicht ausgewählten**

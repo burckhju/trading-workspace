@@ -82,16 +82,26 @@ def qualified(*, content=None, rules=None, spec=None, target=TARGET):
     )
 
 
-def test_production_registry_is_empty_and_never_accepts_fixture_pins():
+@pytest.mark.parametrize("registered_filenames", [False, True])
+def test_production_registry_never_accepts_fixture_bytes_or_impersonated_names(
+    registered_filenames,
+):
     originals, _ = rule_material()
-    assert owner.SUPPORTED_RULE_SETS == ()
+    assert owner.SUPPORTED_RULE_SETS
+    known_at = max(spec.observed_at for spec in owner.SUPPORTED_RULE_SETS) + timedelta(seconds=1)
+    if registered_filenames:
+        documents = {item.role: item for item in owner.SUPPORTED_RULE_SETS[0].documents}
+        originals = tuple(
+            replace(item, filename=documents[item.role].source_reference.rsplit("/", 1)[1])
+            for item in originals
+        )
     with pytest.raises(ListingUnitSourceError, match="LISTING_UNIT_RULE_ORIGINALS_UNQUALIFIED"):
         owner.qualify_gettex_listing_source(
             source=BytesIO(b"not even read"),
             file_name=FILE_NAME,
             target_isin=TARGET,
             rules=originals,
-            known_at=NOW,
+            known_at=known_at,
         )
 
 
@@ -146,7 +156,10 @@ def test_all_required_rule_originals_must_match_reviewed_pins(change):
     elif change == "duplicate":
         originals = (*originals[:-1], originals[0])
     elif change == "content":
-        originals = (replace(originals[0], document=b"%PDF-fabricated"), *originals[1:])
+        originals = (
+            replace(originals[0], document=originals[0].document + b"\nchanged original"),
+            *originals[1:],
+        )
     elif change == "future":
         originals = (replace(originals[0], retrieved_at=NOW + timedelta(seconds=1)), *originals[1:])
     else:

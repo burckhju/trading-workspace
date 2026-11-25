@@ -239,11 +239,14 @@ ein frei behaupteter Dateihash reicht nicht. Die Qualität bleibt
 `CURRENT_UNIT_HISTORY_ASSUMED`; KID-Fakten, historische Maßstabsimporte und
 bekannte harte Widersprüche bleiben unverändert. Der
 [additive Quellenvertrag](../features/HEBELTRADER_MONITORING_INTEGRATION_CONTRACT.md#current-listing-unit-evidence-v1)
-und Migration0061 sind im Arbeitsstand von PR #370 ergänzt. Das feste
-Produktionsregister bleibt leer: Genau drei Börsen-PDFs fehlen als Originalbytes,
-auch die veröffentlichten Börse-München-Downloads antworteten hier HTTP403.
-Die vollständige BSW-Klassifikation ist inzwischen gesichert. Quellenqualifikation,
-Lieferung und tatsächliche P01-Verbraucherabnahme bleiben im einen Backlogauftrag.
+und Migration0061 sind im Arbeitsstand von PR #370 ergänzt. Am 24.11. blieb
+das feste Produktionsregister noch leer: Genau drei Börsen-PDFs fehlten als
+Originalbytes; auch die veröffentlichten Börse-München-Downloads antworteten
+hier HTTP403. **Nachtrag 25.11.:** Die drei Nutzeruploads und die vollständige
+BSW-Klassifikation sind inzwischen als festes Regelpaket
+[qualifiziert und hinterlegt](GETTEX_LISTING_UNIT_ORIGINALS_2026-11-25.md).
+Lieferung, konkrete P01-Vorschau und tatsächliche Verbraucherabnahme bleiben
+im selben Backlogauftrag; der damalige PC-Read wird dadurch nicht erneuert.
 
 ## 4. Offizieller gettex-Dateidienst: neue praktische Probe
 

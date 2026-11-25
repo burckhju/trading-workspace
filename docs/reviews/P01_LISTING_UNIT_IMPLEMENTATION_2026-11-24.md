@@ -9,13 +9,14 @@ Nachweis enthält keine Depotkennungen, Einzelpreise oder individuellen Produkt-
 Aufgabenstatus und der eine verbleibende Versorgungsauftrag stehen ausschließlich
 im [Product Backlog](../planning/PRODUCT_BACKLOG.md#naechster-schnitt).
 
-**Noch keine neue P01-Betriebsabdeckung:** Das Produktionsregister geprüfter
-Regelpakete bleibt leer. Drei erforderliche Regel-PDFs sind als Webtext gelesen,
-aber in dieser Umgebung nicht als Originalbytes verfügbar. Ein Import meldet
-deshalb `LISTING_UNIT_RULE_ORIGINALS_UNQUALIFIED`. Weder Tests noch die frühere
-Kursdateiprobe werden als produktive Quellenqualifikation verwendet. Die
-P01-Listing-/Mappingauswahl und ein frischer gespeicherter V2-Entscheid bleiben
-am PC nachzuweisen.
+**Nachtrag 25.11.:** Die drei Nutzeruploads und die BSW-Klassifikation liegen
+vollständig vor und sind als festes Regelpaket
+[anhand der echten Originale qualifiziert](GETTEX_LISTING_UNIT_ORIGINALS_2026-11-25.md).
+Das Produktionsregister enthält nun genau dieses Paket. Die unten dokumentierte
+Originalbeschaffungslücke gilt für den damaligen Stand vom 24.11.
+**Noch keine neue P01-Betriebsabdeckung:** P01-Listing-/Mappingauswahl,
+tatsächlicher Product-Import und ein frischer gespeicherter V2-Entscheid bleiben
+am PC nachzuweisen. Die getrennte Originalqualifikation ist kein Verbraucherpreis.
 
 Ausgangsstand dieser Umsetzung ist PR-Commit
 `066c24db72b8ee2e489eebf11c261fc13164f057`, Tree
@@ -116,7 +117,7 @@ Die Antwort enthält Quellenreferenzen, Hashes und Gründe, aber keine Original-
 oder rohe Kurszeile. Ein erfolgreicher Listing-Read ist noch keine persönliche
 Quellenauswahl für eine Position.
 
-## 4. Tatsächlich beschaffte öffentliche Originale
+## 4. Tatsächlich beschaffte öffentliche Originale — Stand 24.11.
 
 Die offiziellen Einstiegsseiten
 [gettex](https://www.gettex.de/handel/regelwerk) und
@@ -141,12 +142,16 @@ Die zusammengefasste lokale Beschaffungsnotiz hat SHA256
 `07fd2e80e4c2fa616344f563639361bc6a94eab8a25355eb356e910fa2a72272`.
 Diese öffentlichen Dokumenthashes sind von privaten Produktoriginalen getrennt.
 
-**Kleinste fehlende Beschaffung:** Genau die drei oben benannten Börsen-PDFs
+**Damals kleinste fehlende Beschaffung, am 25.11. erledigt:** Die drei oben benannten Börsen-PDFs
 als unveränderte Dateien aus einem normal zugänglichen offiziellen Download
 bereitstellen. Anschließend Bytes und Fassungs-/Seitenbefunde vergleichen und
 die geprüfte Regelpaketversion im Repository fest hinterlegen. Die vorhandene
 BSW-Datei, P01-KID-Prüfung und Gesamtdateiprobe müssen dafür nicht wiederholt
 werden. Ein erneuter Depotexport ist zur Klärung dieser Lücke unnötig.
+
+Die [Fortschreibung vom 25.11.](GETTEX_LISTING_UNIT_ORIGINALS_2026-11-25.md)
+dokumentiert die tatsächlichen Dateien, Herkunftsgrenzen, vier Hashes,
+Regelstellen, konservative Uhr und erfolgreiche echte Paketqualifikation.
 
 ## 5. Technische Qualifikation
 
@@ -168,9 +173,19 @@ den neuen CLI-Test, den bestehenden KID-Reader sowie
 Evidenz-/Zielpersistenztests und 27 End-to-End-Schemaguardtests geprüft.
 Die vier Fälle in
 [test_listing_unit_evidence_postgres.py](../../tests/integration/backend/database/test_listing_unit_evidence_postgres.py)
-müssen in der regulären PostgreSQL-CI tatsächlich laufen: sequenzieller und
+wurden anschließend in der regulären PostgreSQL-CI tatsächlich ausgeführt: sequenzieller und
 konkurrierender Import, Revisions-/KID-Zeitbindung und vollständige gespeicherte
 V2-Verbraucherkette einschließlich harter historischer Gegenbelege.
+
+Der [tatsächliche Backend-Lauf auf f971d234](https://github.com/burckhju/trading-workspace/actions/runs/45489548102)
+schloss am 24.11. um 22:55:58 Uhr MEZ mit **6.444 bestandenen Tests**,
+einer DeprecationWarning und 90,07% Coverage ab. Alle vier PostgreSQL-Fälle
+sind als Erfolgspunkte im Quality-Log belegt, keine Skips. Der Checkout bindet
+Testmerge `930f0ce2af1b9f29430c9e6a99519cb655fa61e2` an Head
+`f971d23444fb1e0d09843754cf7846c3fc7bfe81` und Main `9a5e59d…`.
+Frontend, End-to-End und Version-Prüfung desselben Heads sind ebenfalls erfolgreich.
+Diese Ergebnisse qualifizieren den damaligen Anschluss; der neue Katalogstand
+vom 25.11. erhält seine eigene Head-/CI-Zuordnung im PR.
 
 Der vollständige Backend-Ruff-Aufruf und Black mit `backend/pyproject.toml`
 sowie `mypy app` über 677 Dateien sind lokal erfolgreich. Alembic meldet

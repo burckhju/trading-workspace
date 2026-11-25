@@ -19,6 +19,9 @@ from app.features.product.domain.listing_unit_evidence import (
 )
 from app.features.product.domain.price_scale_evidence import aware, reference, sha256_text
 from app.features.product.persistence.price_scale_evidence import fingerprint
+from app.features.product.service.listing_unit_rules import (
+    SUPPORTED_RULE_SETS as SUPPORTED_RULE_SETS,
+)
 from app.providers.gettex_delayed.parser import (
     GettexPayloadError,
     GettexQuoteRow,
@@ -27,9 +30,6 @@ from app.providers.gettex_delayed.parser import (
     scan_gzip_quote_batch,
 )
 
-# No reviewed original byte set is available yet. Public API/CLI callers cannot
-# register pins. Synthetic sets belong exclusively to injected test dependencies.
-SUPPORTED_RULE_SETS: tuple[ListingUnitRuleSet, ...] = ()
 MAX_RULE_DOCUMENT_BYTES = 4_000_000
 MAX_RULE_DOCUMENTS_BYTES = 16_000_000
 MAX_PRETRADE_BYTES = 1_073_741_824

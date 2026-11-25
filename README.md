@@ -36,9 +36,11 @@ belegt inzwischen: Die Einheit fehlt im bytegleichen KID; kein Parserfix.
 Der ergänzende aktuelle
 [Listing-Einheitenbeleg](docs/reviews/P01_LISTING_UNIT_IMPLEMENTATION_2026-11-24.md)
 ist mit Product-Import, passivem Reader, Migration0061 und V2-Anschluss in
-PR #370 implementiert. Drei erforderliche Börsen-PDFs fehlen als Originalbytes;
-das Produktionsregister bleibt bis zur Quellenprüfung leer. Installation,
-konkrete Listing-/Mappingauswahl und frischer P01-V2-Entscheid sind noch offen.
+PR #370 implementiert. Die [Originalprüfung vom 25.11.](docs/reviews/GETTEX_LISTING_UNIT_ORIGINALS_2026-11-25.md)
+schließt die drei gelieferten Börsen-PDFs und die BSW-Klassifikation ein;
+das feste Regelpaket ist mit echten Bytes qualifiziert und hinterlegt.
+Installation, konkrete Listing-/Mappingauswahl und frischer P01-V2-Entscheid
+sind weiterhin getrennt nachzuweisen.
 Weitere unveränderte Gesamt-, P02- oder Kandidatenexporte sind dafür nicht
 erforderlich. Der [Collector-Nachweis](docs/reviews/DEPOT_SOURCE_COVERAGE_COLLECTOR_2026-11-24.md)
 erhält die technischen Prüfungen und ihre eigenen CI-Grenzen.
