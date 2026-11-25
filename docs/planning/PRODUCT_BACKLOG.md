@@ -4,7 +4,7 @@
 
 | Feld | Wert |
 |---|---|
-| Revision | 25.11.2026: Drei Nutzer-PDFs und BSW-Original vollständig geprüft; festes gettex-MUND/EUR-Regelpaket mit echten Bytes qualifiziert und im vorhandenen Product-/V2-Pfad hinterlegt. Die Dokumentbeschaffungslücke ist geschlossen. Der einzige P01-Versorgungsauftrag bleibt bis Lieferung, konkreter Listing-/Mapping-/Importvorschau und tatsächlicher Verbraucherabnahme offen. Frühere PC-/CI-Belege behalten ihre datierten Grenzen. |
+| Revision | 25.11.2026: Aktuellen Main, PR-Head und Lieferweg erneut gelesen; v1.5.55 für den vorhandenen P01-gettex-Anschluss konkret vorbereitet. Fünf Versionswerte konsistent, bestehender Launcher unverändert. Das qualifizierte Vierer-Regelpaket bleibt erhalten; BSW-Dateikopie erneut bytegleich bezogen. Veröffentlichung, PC-Update, echte DB-Vorschau und Verbraucherabnahme bleiben eigene Nachweise im selben P01-Auftrag. |
 | Erstprüfung | 19.11.2026, 19:31:38 Uhr MEZ (Europe/Berlin), auf `254f0bbd52ab42e0120d381e915dc96c1118796c` / `v1.5.51` |
 | Fortschreibung | 20.11.2026, Beginn 13:46:04 Uhr MEZ; Main-/Release-Delta, tatsächliche CI, PR- und Betriebsnachweise erneut geprüft |
 | Geprüfter Produktstand | Fachlicher Daten-/Readervertrag auf `c7db441de36297a98d47cdf28c64b4e5d9994692` / v1.5.52; Backendreader und bestehende Betriebshelfer bis zum unten genannten Main unverändert. Die neue Oberfläche bleibt an ihre eigenen #372-Nachweise gebunden. |
@@ -12,6 +12,54 @@
 | Tatsächlicher PC | v1.5.54 auf `9a5e59dac3bb219cbc40641e62e75871eb2ed131`, zuletzt im Quellenkandidatenpaket vom 24.11.2026, 20:33 Uhr MEZ, vor/nach verifiziert; letzte vollständige Inventur weiterhin vom 22.11. |
 | Funktion | Einzige maßgebliche Quelle des aktuellen Aufgabenstatus; bestehende PB-/FT-/M-Kennungen und Owner bleiben erhalten |
 | Prüfgrenze | Vollständiger Checkout, Quellprüfung, Gesamtreadback vom 22.11., P02- und Quellenkandidatenreads vom 24.11., isolierte gettex-Dateiprobe und freigegebene P01-KID-Prüfung; am 25.11. echte Vierer-Regeloriginalqualifikation. Kein interaktiver PC-/DB-Zugang, neuer DB-Previewfingerprint, Product-Import oder neuer P01-Entscheid aus dieser Originalprüfung |
+
+<a id="p01-lieferung-20261125"></a>
+## Fortschreibung — P01-Lieferung konkret vorbereitet, 25.11.2026
+
+**Aktueller Standabgleich:** Main und veröffentlichter Tag v1.5.54 stehen
+weiterhin auf `9a5e59dac3bb219cbc40641e62e75871eb2ed131`. PR #370 war zu
+Beginn dieser Fortsetzung offen, unverändert auf dem vollständig geprüften
+Head `305293395b767d963ec6ec3c4834da169ef34feb`; neue PR-Kommentare,
+Reviews, Releases oder PC-Betriebsnachweise wurden nicht gefunden. Die
+6.445 Backendtests, 2.838 Frontendtests und erfolgreichen E2E-/Versionsgates
+bleiben an diesen Head gebunden und wurden nicht erneut angestoßen.
+
+**Umgesetzt im bestehenden Lieferweg:** Ein Merge mit unverändertem
+`VERSION=1.5.54` könnte keinen neuen PC-Tag veröffentlichen, weil der Publisher
+bestehende Tags nie verschiebt. Die [Releasevorbereitung v1.5.55](../releases/V1.5.55-P01-GETTEX-PC-DELIVERY.md)
+schließt diese konkrete Lieferlücke mit fünf Versionswerten in vier Dateien.
+Anwendungscode, Abhängigkeiten, Regelkatalog, Migration0061 und Updatehelfer
+bleiben gegenüber dem geprüften PR-Head unverändert. Der vorhandene
+Versions-/Publicationtest ist mit neun bestandenen Fällen ausgeführt.
+Die erforderliche CI des neuen Release-Heads wird im [bestehenden PR #370](https://github.com/burckhju/trading-workspace/pull/370)
+eigenständig nachgewiesen; anschließend gelten normale Integration,
+Main-Gates und automatischer Tagpublisher. Vorbereitung ist noch keine
+Veröffentlichung oder PC-Installation. Ein Updateaufruf wird erst mit dem
+tatsächlich veröffentlichten Tagcommit ausgefüllt; die neue Import-CLI wird
+nicht für den zuletzt belegten alten PC-Stand vorausgesetzt.
+
+**Tatsächliche Zugangs- und Dateigrenze:** Im neuen Arbeitsraum sind weder
+der private archivgebundene P01-Bezug noch eine vollständige gettex-Datei
+vorhanden. Die verfügbaren Zugänge liefern keinen identifizierten Zugriff
+auf den Nutzer-PC oder seine Datenbank. Die BSW-Kopie wurde am 25.11.,
+07:54:37–07:54:56 Uhr MEZ, im selben begrenzten Abruflauf erneut vollständig
+und bytegleich zum qualifizierten Pin beschafft. Je ein normaler Abruf der
+drei Börsen-PDFs ergab HTTP403; diese Dateikopien fehlen hier weiterhin.
+Das öffnet keine bereits abgeschlossene fachliche Quellenqualifikation und
+belegt keine generelle Unerreichbarkeit auf dem Nutzer-PC.
+
+**Fortsetzung desselben P01-Auftrags:** Nach nachgewiesener Lieferung und
+Installation genügt ein gebündelter enger PC-Schritt: aus dem vorhandenen
+privaten Archiv ausschließlich P01 binden, aktuelle Position, Produkt,
+Terms, KID und MUND/EUR-Listings samt Revisionen sowie die vorhandenen
+gettex-/Refresh-/V2-Einstellungen lesen; vier tatsächliche Regeldateien und
+eine vollständige lokale Pretrade-Datei für die konkrete Vorschau bereitstellen.
+Der alte Gesamt-, P02- oder Quellenkandidatenexport wird nicht wiederholt.
+Product-/Mappingvorschau, Anwendung und gespeicherte Verbraucherabnahme
+verwenden die vorhandenen Owner; heute sind weder aktuelle IDs noch ein
+DB-Previewfingerprint oder ein neuer P01-Entscheid belegt. Product, Market Data
+und Position Monitoring bleiben zuständig. Der [einzige Auftrag](#naechster-schnitt)
+und sämtliche ursprünglichen Abnahmekriterien bleiben offen.
 
 <a id="p01-originalpaket-20261125"></a>
 ## Fortschreibung — Regeloriginale qualifiziert, 25.11.2026
@@ -2921,6 +2969,8 @@ B04/B57/B58, Produktfristen und B06 bleiben getrennte Anforderungen.
    verwendet eine eigene Product-Tabelle mit Listing-Revisionskette statt
    zusätzlicher KID-Dokumentart. Product-Reader und V2 übergeben getrennte
    KID-/Einheitenprovenienz und die tatsächliche `saved.route` bereits.
+   Die [Lieferung v1.5.55 ist konkret vorbereitet](#p01-lieferung-20261125):
+   vorhandener Launcher, fünf Versionswerte und eigene Release-Head-/Main-Gates.
    Quellenstand, Datenbankmigration und reguläre CI vor Lieferung qualifizieren;
    Parser v2, KID-Fakten, Frischegrenzen und historische Kontinuitätsannahme
    bleiben unverändert.
@@ -2945,6 +2995,11 @@ B04/B57/B58, Produktfristen und B06 bleiben getrennte Anforderungen.
 
 **Benötigter Zugang / konkrete Entscheidung:** Der P01-KID-Lesezugang ist
 freigegeben und genutzt; alle vier Regeloriginale sind vorhanden und geprüft.
+Das bezeichnet den ursprünglichen Nachweisstand. Im neuen Arbeitsraum ist
+BSW wieder bytegleich vorhanden; die drei Börsen-Dateikopien, das private
+P01-Referenzarchiv, die vollständige gettex-Datei und der tatsächliche
+PC-/DB-Zugang fehlen weiterhin, wie im [Liefernachtrag](#p01-lieferung-20261125)
+konkret abgegrenzt. Fehlende Kopien sind keine neue fachliche Quellenlücke.
 Nach geprüfter Lieferung werden nur aktuelle P01-Produkt-/Listing-/KID-Bindungen
 für die echte Vorschau sowie die vollständige lokale gettex-Datei benötigt.
 Der [vorbereitete Ablauf](../reviews/GETTEX_LISTING_UNIT_ORIGINALS_2026-11-25.md#5-vorbereitete-p01-import--und-mappingvorschau)
@@ -2990,7 +3045,8 @@ P01-gettex-Quellendeckung und abgeschlossene P01-KID-Ursachenprüfung;
 Implemented — ergänzender aktueller Listing-Einheitenbeleg mit Product-Import,
 passivem Reader, Migration0061 und V2-Routenanschluss; am 25.11. alle vier
 echten Regeloriginale qualifiziert und fest hinterlegt. Verbleibend sind die
-geprüfte Lieferung, konkrete P01-Listing-/Mapping-/Importvorschau und tatsächliche
+Veröffentlichung und PC-Installation der inzwischen konkret vorbereiteten
+Lieferung v1.5.55, konkrete P01-Listing-/Mapping-/Importvorschau und tatsächliche
 Verbraucherabnahme. Originalqualifikation allein erhöht keine Depotabdeckung.
 Die reine Collectorfertigstellung ist abgeschlossen. Zuständige Owner bleiben
 Product, Market Data und Position Monitoring; kein neuer Regelumfang wird freigegeben.
