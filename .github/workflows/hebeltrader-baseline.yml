@@ -1,0 +1,40 @@
+name: Hebeltrader integration source snapshot
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/hebeltrader-baseline.yml'
+permissions:
+  contents: read
+jobs:
+  snapshot:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'feat/hebeltrader-confirmed-baseline-20260914'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+      - name: Export tracked public source
+        run: |
+          mkdir -p verification
+          git archive --format=zip HEAD -o verification/tracked-source.zip
+          git rev-parse HEAD > verification/source-sha.txt
+          git rev-parse HEAD^{tree} > verification/source-tree.txt
+      - name: Install locked public frontend test dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Export frontend dependencies for offline integration checks
+        run: tar -czf verification/frontend-node-modules.tar.gz -C frontend node_modules
+      - name: Return source and test dependencies
+        uses: actions/upload-artifact@v4
+        with:
+          name: hebeltrader-integration-source-${{ github.run_id }}
+          path: verification/
+          retention-days: 3
+          if-no-files-found: error
+# Development-only export. No private files, credentials, deployment, database or broker access.
+# Remove this helper from the final implementation tree. Standard quality gates are unchanged.
