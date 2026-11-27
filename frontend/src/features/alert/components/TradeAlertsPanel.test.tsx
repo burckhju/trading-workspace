@@ -1,4 +1,5 @@
 import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { alertApiClient } from '../services/client';
@@ -581,9 +582,66 @@ describe('TradeAlertsPanel', () => {
     },
   );
 
-  it('does not describe every invalidated observation as an unqualified price binding', async () => {
+  it.each([
+    [
+      'LEGACY_RULE_PRICE_BASIS_UNCONFIRMED',
+      'Der historische Regelkursbezug wurde nicht bestätigt',
+      'Die bisherige Risikokonfiguration oder Identität wurde abgelöst',
+    ],
+    [
+      'RISK_CONFIGURATION_OR_IDENTITY_SUPERSEDED',
+      'Die bisherige Risikokonfiguration oder Identität wurde abgelöst',
+      'Der historische Regelkursbezug wurde nicht bestätigt',
+    ],
+  ])(
+    'explains the supplied invalidation reason %s and preserves its evidence',
+    async (reason, explanation, unrelatedExplanation) => {
+      const user = userEvent.setup();
+      api.forTrade.mockResolvedValue([
+        entryObservation({
+          alert_type: 'RISK_TREND_CHANGED',
+          status: 'INVALIDATED',
+          invalidation_reason: reason,
+        }),
+      ]);
+      render(<TradeAlertsPanel tradeId="trade-1" />);
+
+      expect(await screen.findByText(new RegExp(explanation))).toHaveTextContent(
+        'Ursprüngliche Angaben bleiben zur Nachvollziehbarkeit erhalten.',
+      );
+      expect(screen.queryByText(new RegExp(unrelatedExplanation))).not.toBeInTheDocument();
+      expect(screen.queryByText(/durch (eine )?neue Bewertung ungültig/)).not.toBeInTheDocument();
+      expect(screen.getByText('Ungültig')).toBeInTheDocument();
+      expect(screen.getByText('0 offen')).toBeInTheDocument();
+      expect(screen.getByText('0,48')).toBeInTheDocument();
+      expect(screen.getByText('0,55')).toBeInTheDocument();
+      expect(screen.getByText(/Quelle: SYNTHETIC · SYNTHETIC-INSTRUMENT/)).toBeInTheDocument();
+      expect(screen.getByText(/Kurszeitpunkt: nicht bekannt/)).toHaveTextContent(
+        'Abgerufen: 2026-11-17T10:04:00Z',
+      );
+      expect(
+        screen.getByText('Der beobachtete Geldkurs liegt unter dem persönlichen Bruttoeinstand.'),
+      ).toBeInTheDocument();
+      const summary = screen.getByText('Invalidierungsgrund anzeigen');
+      expect(summary.closest('details')).not.toHaveAttribute('open');
+      await user.click(summary);
+      expect(summary.closest('details')).toHaveAttribute('open');
+      expect(screen.getByText(reason)).toBeVisible();
+      expect(api.forTrade).toHaveBeenCalledTimes(1);
+      expect(api.monitoringHealth).toHaveBeenCalledTimes(1);
+      expect(api.monitoringRuntime).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it.each<AlertResponse['alert_type']>([
+    'STOP_REACHED',
+    'HEBELTRADER_B04_LOSS',
+    'INDICATIVE_ENTRY_LOSS',
+    'PRODUCT_DEADLINE_REVIEW',
+  ])('keeps an unknown invalidation reason neutral for %s', async (alertType) => {
     api.forTrade.mockResolvedValue([
       entryObservation({
+        alert_type: alertType,
         status: 'INVALIDATED',
         invalidation_reason: 'OWNER_BASIS_CHANGED',
       }),
@@ -591,10 +649,91 @@ describe('TradeAlertsPanel', () => {
     render(<TradeAlertsPanel tradeId="trade-1" />);
 
     expect(
-      await screen.findByText(/Hinweis durch eine neue Bewertung ungültig/),
+      await screen.findByText(
+        /Diese Meldung ist ungültig. Ein näherer Invalidierungsgrund ist nicht belegt./,
+      ),
     ).toBeInTheDocument();
+    expect(screen.queryByText(/durch (eine )?neue Bewertung ungültig/)).not.toBeInTheDocument();
     expect(
-      screen.queryByText(/Meldung wegen ungeklärtem Kursbezug ungültig/),
+      screen.queryByText(/historische Regelkursbezug wurde nicht bestätigt/),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Risikokonfiguration oder Identität wurde abgelöst/),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText('OWNER_BASIS_CHANGED')).toBeInTheDocument();
+  });
+
+  it.each([undefined, null, ''])(
+    'explains INVALIDATED without inventing a missing reason (%s)',
+    async (reason) => {
+      api.forTrade.mockResolvedValue([
+        entryObservation({ status: 'INVALIDATED', invalidation_reason: reason }),
+      ]);
+      render(<TradeAlertsPanel tradeId="trade-1" />);
+
+      expect(
+        await screen.findByText(/Ein näherer Invalidierungsgrund ist nicht belegt/),
+      ).toBeInTheDocument();
+      expect(screen.queryByText('Invalidierungsgrund anzeigen')).not.toBeInTheDocument();
+      expect(screen.getByText('Ungültig')).toBeInTheDocument();
+      expect(screen.getByText('0 offen')).toBeInTheDocument();
+    },
+  );
+
+  it.each(['OPEN', 'RESOLVED'] as const)(
+    'does not infer invalidation from a reason on a %s alert',
+    async (status) => {
+      api.forTrade.mockResolvedValue([
+        entryObservation({
+          status,
+          resolved_at: status === 'RESOLVED' ? '2026-11-17T10:10:00Z' : null,
+          invalidation_reason: 'LEGACY_RULE_PRICE_BASIS_UNCONFIRMED',
+        }),
+      ]);
+      render(<TradeAlertsPanel tradeId="trade-1" />);
+
+      expect(await screen.findByText(status)).toBeInTheDocument();
+      expect(screen.getByText(status === 'OPEN' ? '1 offen' : '0 offen')).toBeInTheDocument();
+      expect(screen.queryByText('Ungültig')).not.toBeInTheDocument();
+      expect(screen.queryByText('Invalidierungsgrund anzeigen')).not.toBeInTheDocument();
+      expect(
+        screen.queryByText(/historische Regelkursbezug wurde nicht bestätigt/),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByText(/Kurserholung|vollständig verkauft|quittiert/i),
+      ).not.toBeInTheDocument();
+    },
+  );
+
+  it.each([
+    ['PENDING', 'Versand unterdrückt: Meldung ungültig'],
+    ['DELIVERED', 'TELEGRAM: zugestellt'],
+    ['FAILED', 'TELEGRAM: fehlgeschlagen'],
+  ] as const)('keeps %s delivery independent of invalidation', async (status, label) => {
+    api.forTrade.mockResolvedValue([
+      entryObservation({
+        status: 'INVALIDATED',
+        invalidation_reason: 'RISK_CONFIGURATION_OR_IDENTITY_SUPERSEDED',
+        notifications: [
+          {
+            id: 'synthetic-notification',
+            channel: 'TELEGRAM',
+            destination_key: 'synthetic',
+            status,
+            created_at: '2026-11-17T10:05:00Z',
+            last_delivery: null,
+          },
+        ],
+      }),
+    ]);
+    render(<TradeAlertsPanel tradeId="trade-1" />);
+
+    expect(await screen.findByText(label)).toBeInTheDocument();
+    expect(screen.getByText('Ungültig')).toBeInTheDocument();
+    expect(screen.getByText('0 offen')).toBeInTheDocument();
+    expect(screen.queryByText('TELEGRAM: ausstehend')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /erneut|quittieren|senden/i }),
     ).not.toBeInTheDocument();
   });
 
