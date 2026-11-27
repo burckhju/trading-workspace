@@ -36,7 +36,8 @@ export function PlanPurchaseStatus({ item }: { item: TradePlanOverviewItem }) {
       </p>
       {!progress && (
         <p className="text-sm text-amber-200">
-          Keine Kaufstatusdaten verfügbar. Backend aktualisieren und Übersicht neu laden.
+          Keine Kaufstatusdaten verfügbar. Ob ein Kauf erfasst wurde, bleibt ungeklärt. Über
+          „Übersicht aktualisieren“ kannst du den Datenstand erneut abrufen.
         </p>
       )}
       {trades.some((trade) => trade.trade_plan_version_id !== item.latest_version_id) && (
