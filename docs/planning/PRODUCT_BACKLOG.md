@@ -4,14 +4,45 @@
 
 | Feld | Wert |
 |---|---|
-| Revision | 27.11.2026: Product-Einheitenrevision 1, validiertes gettex-Mapping und eindeutige P01-MUND/EUR-Auswahl sind tatsächlich gespeichert. Product liefert in allen 40 passiven Beobachtungen AVAILABLE/CURRENCY_PER_WARRANT; KID-Revision 7 bleibt getrennt und unverändert. Eine neue reguläre V2-Bewertung ist gespeichert, weiterhin UNAVAILABLE wegen fehlender Quote der aktuellen Route. Nächster enger Schritt ist der bestehende passive P01-Quotehistory-Read zu den gespeicherten leeren gettex-Ergebnissen, insbesondere Empfangszeit und Cachestatus. |
+| Revision | 27.11.2026: Product-Einheitenrevision 1, validiertes gettex-Mapping und eindeutige P01-MUND/EUR-Auswahl sind tatsächlich gespeichert. Product liefert in allen 40 passiven Beobachtungen AVAILABLE/CURRENCY_PER_WARRANT; KID-Revision 7 bleibt getrennt und unverändert. Eine neue reguläre V2-Bewertung ist gespeichert, weiterhin UNAVAILABLE wegen fehlender Quote der aktuellen Route. Der ergänzende Handabruf im Cloud-Browser bestätigt zwei vollständig geprüfte MUND-Dateien ohne P01-Treffer. Nächster enger Schritt bleibt der bestehende passive P01-Quotehistory-Read zu den gespeicherten leeren gettex-Ergebnissen, insbesondere Empfangszeit und Cachestatus. |
 | Erstprüfung | 19.11.2026, 19:31:38 Uhr MEZ (Europe/Berlin), auf `254f0bbd52ab42e0120d381e915dc96c1118796c` / `v1.5.51` |
 | Fortschreibung | 20.11.2026, Beginn 13:46:04 Uhr MEZ; Main-/Release-Delta, tatsächliche CI, PR- und Betriebsnachweise erneut geprüft |
 | Geprüfter Produktstand | Ursprünglicher Daten-/Readervertrag auf `c7db441de36297a98d47cdf28c64b4e5d9994692` / v1.5.52; der ergänzende P01-Anschluss und P02-Resolverfix sind auf Release-Head `2701efa08c84c603c356e0312c0aefd409f4a4b0` und dem unten genannten Main jeweils eigenständig qualifiziert. Die Oberfläche behält ihre eigenen #372-Nachweise. |
 | Aktueller Main | `eb7f89a30a1772f2c140c5a11cdfb0284d80fc3c`, Merge #370 vom 25.11.2026, 08:37:31 Uhr MEZ, `VERSION=1.5.55`. Tag v1.5.55 wurde nach vollständiger Main-CI um 09:07:32 Uhr MEZ auf genau diesem Commit veröffentlicht. Main und Tag sind kein Nachweis einer PC-Installation. |
 | Tatsächlicher PC | Anwendungs-/Beobachtungslauf vom 27.11.2026, 21:42:08,461468–22:02:41,974161 Uhr MEZ: v1.5.55 auf `eb7f89a30a1772f2c140c5a11cdfb0284d80fc3c`, Schema `20261124_0061` vor/nach gelesen, vier gesunde Dienste, Installation und gelesene Betriebseinstellungen unverändert. Neue P01-Bewertung um 21:53:38,461959 Uhr MEZ gespeichert. Readiness 200/ready im Installationsbeleg vom 25.11.; letzte vollständige Inventur weiterhin vom 22.11. |
 | Funktion | Einzige maßgebliche Quelle des aktuellen Aufgabenstatus; bestehende PB-/FT-/M-Kennungen und Owner bleiben erhalten |
-| Prüfgrenze | Tatsächliche Product-/Mappinganwendung und ausgewählte Route sind belegt; 40 passive Beobachtungen enthalten genau eine neue gespeicherte V2-Bewertung, weiterhin UNAVAILABLE. Zwei reguläre gettex-Versuche liefern NO_QUOTE_RETURNED ohne konkreten Transport-/Parserfehlercode. Der genaue verwendete Batch und sein Cache-/Empfangsbezug sind im gelieferten Refresh-Summary nicht enthalten. Kein eigener interaktiver PC-/DB-Zugang; frischer positiver Verbraucherbid, Sitzungen zum Quellenereignis, auswertbare Bewertung, regelmäßige erfolgreiche Versorgung und Wiederanlauf bleiben offen. |
+| Prüfgrenze | Tatsächliche Product-/Mappinganwendung und ausgewählte Route sind belegt; 40 passive Beobachtungen enthalten genau eine neue gespeicherte V2-Bewertung, weiterhin UNAVAILABLE. Zwei reguläre gettex-Versuche liefern NO_QUOTE_RETURNED ohne konkreten Transport-/Parserfehlercode. Der genaue verwendete Batch und sein Cache-/Empfangsbezug sind im gelieferten Refresh-Summary nicht enthalten. Die separat im Cloud-Browser geladenen Originale enthalten keine P01-Zeile; sie belegen keine PC-Ausführung oder damals verfügbare beziehungsweise verwendete PC-Datei. Kein eigener interaktiver PC-/DB-Zugang; frischer positiver Verbraucherbid, Sitzungen zum Quellenereignis, auswertbare Bewertung, regelmäßige erfolgreiche Versorgung und Wiederanlauf bleiben offen. |
+
+<a id="p01-handabruf-20261127"></a>
+## Fortschreibung — manueller Abruf zweier Originaldateien ohne P01-Treffer, 27.11.2026
+
+**Observed — Cloud-Browser:** Zwei sichtbare offizielle MUND-Dateilinks wurden
+tatsächlich geöffnet und die Originaldateien vollständig geladen. Die vollständigen
+gzip-/CSV-Prüfungen ergeben ausschließlich siebenfeldrige Zeilen und keinen
+P01-Datensatz; der bestehende native Parser liefert jeweils keine P01-Quote
+und keine P01-Fehlermeldung. Dies war keine Ausführung auf dem Nutzer-PC.
+
+| Tatsächliche Originaldatei | Bytes | Vollständig gelesene CSV-Zeilen | Beobachtete Inhaltszeiten (UTC) | Prüfabschluss am 27.11. (MEZ) |
+|---|---:|---:|---|---|
+| `pretrade.20261127.21.30.mund.csv.gz` | 1.543.604 | 70.404 | 21:15:00,022284–21:29:59,985424 | 22:47:47,569772 |
+| `pretrade.20261127.20.45.mund.csv.gz` | 227.039.082 | 14.453.120 | 20:30:00,002027–20:44:59,999314 | 22:50:41,149031 |
+
+Dateinamen und Inhaltszeiten verwenden **UTC**. Die beiden Dateien bestätigen
+die bereits [dokumentierten 15-Minuten-Fenster](../quote-source-decision.md);
+die Abweichung zum Website-Satz „letzte 24 Stunden“ ist kein neuer Befund.
+Für diese Originale ist kein vorhandener P01-Treffer durch den Parser
+unterdrückt; ein Parser- oder Adapterfix ist damit nicht begründet.
+
+Die bestehende [Kandidatberechnung](../../backend/app/providers/gettex_delayed/adapter.py)
+ergibt für beide belegten PC-Requestzeiten, 21:46:09 und 21:57:10 Uhr MEZ,
+jeweils die **20:45-UTC-Datei als ersten Kandidaten**. Der spätere Cloud-Abruf
+belegt weder ihre damalige Verfügbarkeit noch, welche Datei der PC tatsächlich
+geladen oder aus dem Cache verwendet hat. Die privaten Originale und
+Einzelnachweise bleiben außerhalb des Repositorys.
+
+**Nächster Schritt unverändert:** Im [bestehenden Auftrag](#naechster-schnitt)
+einmal den vorhandenen passiven P01-Quotehistory-Read mit `days=1` erhalten,
+um Cache- und Empfangsbezug der tatsächlichen PC-Versuche zu prüfen.
 
 <a id="p01-anwendung-20261127"></a>
 ## Fortschreibung — Product und Route gespeichert, V2 mangels Quote gesperrt, 27.11.2026
@@ -3427,7 +3458,10 @@ B04/B57/B58, Produktfristen und B06 bleiben getrennte Anforderungen.
    Der tatsächliche V2-Verbraucher speichert nach der Anwendung einen neuen
    UNAVAILABLE-Entscheid mit NO_SAVED_QUOTE_FOR_CURRENT_ROUTE. Zwei reguläre
    gettex-Versuche verwenden die richtige ausgewählte Route, liefern aber
-   NO_QUOTE_RETURNED. **Genau nächster enger Read:** den bestehenden passiven
+   NO_QUOTE_RETURNED. Der ergänzende [Handabruf](#p01-handabruf-20261127)
+   bestätigt zwei Originaldateien ohne P01-Treffer; die tatsächlich verwendete
+   PC-Datei und ihr Cache-/Empfangsbezug bleiben unbelegt.
+   **Genau nächster enger Read:** den bestehenden passiven
    P01-Quotehistory-GET mit `days=1` ausführen, um `retrieved_at` und
    `cache_status` der gespeicherten leeren Ergebnisse zu lesen. Danach den
    konkreten Batch-/Quellenrest beim bestehenden Owner schließen und positive
