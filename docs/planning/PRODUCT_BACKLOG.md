@@ -4,17 +4,89 @@
 
 | Feld | Wert |
 |---|---|
-| Revision | 27.11.2026: Product-Einheitenrevision 1, validiertes gettex-Mapping und eindeutige P01-MUND/EUR-Auswahl sind tatsächlich gespeichert. Product liefert in allen 40 passiven Beobachtungen AVAILABLE/CURRENCY_PER_WARRANT; KID-Revision 7 bleibt getrennt und unverändert. Eine neue reguläre V2-Bewertung ist gespeichert, weiterhin UNAVAILABLE wegen fehlender Quote der aktuellen Route. Der ergänzende Handabruf im Cloud-Browser bestätigt zwei vollständig geprüfte MUND-Dateien ohne P01-Treffer. Nächster enger Schritt bleibt der bestehende passive P01-Quotehistory-Read zu den gespeicherten leeren gettex-Ergebnissen, insbesondere Empfangszeit und Cachestatus. |
+| Revision | 27.11.2026: Product-Einheitenrevision 1, validiertes Mapping und eindeutige P01-MUND/EUR-Auswahl sind gespeichert; eine neue V2-Bewertung bleibt mangels Quote UNAVAILABLE. Der anschließende PC-Quotehistory-Read ist ausgeführt: 11 leere HIT-Samples mit sieben unterschiedlichen Batch-Empfangszeiten. Eine frühere Tagesdatei enthält positive P01-Quoten und wird vom nativen Parser fehlerfrei gelesen, ist für die späteren PC-Zeitpunkte aber zu alt. Nächste Abhängigkeit ist die passive Verbraucherabnahme nach regulärem Refresh in einem neuen tatsächlichen P01-Quotenfenster; Beobachtung geplant am 30.11.2026 um 16:00 Uhr MEZ. |
 | Erstprüfung | 19.11.2026, 19:31:38 Uhr MEZ (Europe/Berlin), auf `254f0bbd52ab42e0120d381e915dc96c1118796c` / `v1.5.51` |
 | Fortschreibung | 20.11.2026, Beginn 13:46:04 Uhr MEZ; Main-/Release-Delta, tatsächliche CI, PR- und Betriebsnachweise erneut geprüft |
 | Geprüfter Produktstand | Ursprünglicher Daten-/Readervertrag auf `c7db441de36297a98d47cdf28c64b4e5d9994692` / v1.5.52; der ergänzende P01-Anschluss und P02-Resolverfix sind auf Release-Head `2701efa08c84c603c356e0312c0aefd409f4a4b0` und dem unten genannten Main jeweils eigenständig qualifiziert. Die Oberfläche behält ihre eigenen #372-Nachweise. |
 | Aktueller Main | `eb7f89a30a1772f2c140c5a11cdfb0284d80fc3c`, Merge #370 vom 25.11.2026, 08:37:31 Uhr MEZ, `VERSION=1.5.55`. Tag v1.5.55 wurde nach vollständiger Main-CI um 09:07:32 Uhr MEZ auf genau diesem Commit veröffentlicht. Main und Tag sind kein Nachweis einer PC-Installation. |
 | Tatsächlicher PC | Anwendungs-/Beobachtungslauf vom 27.11.2026, 21:42:08,461468–22:02:41,974161 Uhr MEZ: v1.5.55 auf `eb7f89a30a1772f2c140c5a11cdfb0284d80fc3c`, Schema `20261124_0061` vor/nach gelesen, vier gesunde Dienste, Installation und gelesene Betriebseinstellungen unverändert. Neue P01-Bewertung um 21:53:38,461959 Uhr MEZ gespeichert. Readiness 200/ready im Installationsbeleg vom 25.11.; letzte vollständige Inventur weiterhin vom 22.11. |
 | Funktion | Einzige maßgebliche Quelle des aktuellen Aufgabenstatus; bestehende PB-/FT-/M-Kennungen und Owner bleiben erhalten |
-| Prüfgrenze | Tatsächliche Product-/Mappinganwendung und ausgewählte Route sind belegt; 40 passive Beobachtungen enthalten genau eine neue gespeicherte V2-Bewertung, weiterhin UNAVAILABLE. Zwei reguläre gettex-Versuche liefern NO_QUOTE_RETURNED ohne konkreten Transport-/Parserfehlercode. Der genaue verwendete Batch und sein Cache-/Empfangsbezug sind im gelieferten Refresh-Summary nicht enthalten. Die separat im Cloud-Browser geladenen Originale enthalten keine P01-Zeile; sie belegen keine PC-Ausführung oder damals verfügbare beziehungsweise verwendete PC-Datei. Kein eigener interaktiver PC-/DB-Zugang; frischer positiver Verbraucherbid, Sitzungen zum Quellenereignis, auswertbare Bewertung, regelmäßige erfolgreiche Versorgung und Wiederanlauf bleiben offen. |
+| Prüfgrenze | Product-/Mappinganwendung und ausgewählte Route sind belegt; 40 passive Beobachtungen enthalten genau eine neue gespeicherte V2-Bewertung, weiterhin UNAVAILABLE. Cacheverwendung und Batch-Empfangszeiten der leeren PC-Ergebnisse sind inzwischen bestätigt; 11 erfasste Slots sind keine Abrufzählung und keine veralteten Erfolgsquotes. Die genauen PC-Dateinamen bleiben unbelegt. Die separaten Cloud-Proben enthalten P01 in einem früheren, nicht in den beiden späteren Dateifenstern; sie belegen keinen aktuellen Verbraucherpreis oder P01-OPEN-/CLOSED-Zustand. Kein eigener interaktiver PC-/DB-Zugang; frischer positiver Bid, passende Quellenereignissitzungen, auswertbare Bewertung, regelmäßige erfolgreiche Versorgung und Wiederanlauf bleiben offen. |
+
+<a id="p01-quotehistory-20261127"></a>
+## Fortschreibung — PC-Cachebezug geklärt, frühere Tagesquote belegt, 27.11.2026
+
+**Observed — enger PC-Read abgeschlossen:** Der tatsächliche Quotehistory-Report
+mit Fensterende **27.11., 23:02:56,212812 Uhr MEZ** gehört eindeutig zur
+angewendeten P01-/gettex-Identität. Er enthält **11 Samples** von
+21:46:09,718296 bis 23:02:45,390770 Uhr MEZ: jeweils `NO_QUOTE`,
+`WARRANT_NO_QUOTE_RETURNED`, `quote=null` und **`cache_status=HIT`**.
+Es gibt keinen Quotefingerprint, keine Erfolgsquote und kein STALE-Sample.
+Die Policy `FIRST_CAPTURE_PER_ROUTE_5_MIN_UTC_V1` erfasst nur den ersten
+Capture je Route und UTC-Fünfminutenslot; **11 Slots sind keine 11 Providerabrufe**.
+Auch die sieben unterschiedlichen gemeldeten Batch-Empfangszeiten erlauben
+keine genaue HTTP-Abrufzählung. Der Adapter setzt `retrieved_at` nach
+vollständigem Download und Scanabschluss; dies ist keine Original-Quellenzeit:
+
+| Batch-Empfang am 27.11. (MEZ) | Samples im Report |
+|---|---:|
+| 21:45:20,860418 | 1 |
+| 21:49:16,633468 | 2 |
+| 22:04:25,662144 | 1 |
+| 22:16:26,880673 | 2 |
+| 22:31:04,236145 | 2 |
+| 22:47:04,154868 | 2 |
+| 23:01:24,651368 | 1 |
+
+Die Captures um 21:46:09,718296 und 21:57:10,614040 Uhr MEZ passen innerhalb
+der beiden zuvor belegten Refreshversuche. Der Capture um 21:53:38,389716 Uhr
+liegt unmittelbar vor der neuen V2-Evaluation und verwendet ebenfalls den
+Batch-Empfang 21:49:16,633468 Uhr. Ein einziger unverändert festhängender Batch
+erklärt diesen Verlauf nicht; mehrere neue Scanabschlüsse sind belegt.
+Die **Cache-/Empfangslücke ist geschlossen**;
+die genauen vom PC verwendeten Dateinamen bleiben im Report unbekannt.
+
+**Observed — begrenzte frühere Quellenprobe:** Die über einen sichtbaren
+offiziellen Link im Cloud-Browser geladene
+`pretrade.20261127.18.00.mund.csv.gz` umfasst **646.115.149 Bytes** und
+**35.355.073 vollständig gelesene siebenfeldrige CSV-Zeilen** ohne CSV-Parsefehler.
+Das beobachtete Fenster reicht von 17:45:00,001161 bis 17:59:59,999805 Uhr **UTC**.
+Zwei P01-Roh-/CSV-Treffer liefern passende positive EUR-Quoten; der native
+Parser bestätigt den letzten Treffer ohne Fehler. Prüfabschluss ist
+**23:09:51,285416 Uhr MEZ**. Private Kennungen, Kurswerte und Rohzeilen werden
+nicht veröffentlicht; keine PC-/DB-Ausführung oder neue Bewertung erfolgte.
+
+Die letzte Quellenzeit dieser Probe ist **17:59:07,298133 Uhr UTC /
+18:59:07,298133 Uhr MEZ**. Zur ersten PC-Anfrage ist sie bereits
+**10.022,392151 s**, zur neuen V2-Evaluation **10.471,100025 s** alt.
+Sie ist deshalb kein zulässiger aktueller Verbraucherpreis. Ein positiver
+P01-Quellenbeleg liegt damit im früheren geprüften Dateifenster vor; aus den
+späteren negativen Proben folgen weder Parserfehler noch ein bestimmter Handelsschluss.
+Die acht bestehenden Fallbackfenster und die Frischegrenze von 1.800 s
+bleiben unverändert; ein Codefix oder Cache-Reset ist nicht begründet.
+Ein privater Issuervergleich bei der Ablesung um 23:10 Uhr MEZ zeigt eine
+ältere angezeigte Kurszeit nahe 19 Uhr und „Markt geschlossen“, jedoch ohne
+explizite Zeitzone der Kursanzeige oder Statusereignis/Gültigkeit; daraus wird
+kein P01-MUND-Status und kein Ersatz für den Verbraucherpreis abgeleitet.
+
+**Genau nächste Abhängigkeit im selben Auftrag:** Den vorhandenen regulären
+Refresh und V2-Zyklus in einem **neuen tatsächlichen P01-Quotenfenster** passiv
+abnehmen. Geplanter Beobachtungstermin ist **30.11.2026, 16:00 Uhr MEZ**;
+der Termin garantiert keine P01-Quote oder Handelsbereitschaft. Einmal den
+bestehenden passiven `indicative-entry`-GET lesen und die neue gespeicherte
+Bewertung anhand von Bid, Quellen-/Empfangszeit, `session_count_at`,
+abgeschlossenen Sitzungen und Einheitenqualität prüfen. Kein weiterer
+Quotehistory-Export, erneuter Import, Mappingapply, Cache-Reset oder
+Gesamtexport gehört zu diesem nächsten Schritt. Originalbidzeit,
+instrumentbezogenes OPEN, historische Strenge, Fristen, B06 und die übrigen
+B04/B57/B58-Abnahmegrenzen bleiben erhalten.
 
 <a id="p01-handabruf-20261127"></a>
 ## Fortschreibung — manueller Abruf zweier Originaldateien ohne P01-Treffer, 27.11.2026
+
+**Inzwischen fortgesetzt:** Der nachfolgende [PC-Quotehistory-Read und die
+frühere positive Tagesprobe](#p01-quotehistory-20261127) sind abgeschlossen.
+Die folgenden beiden negativen Dateiproben bleiben als datierte Belege erhalten.
 
 **Observed — Cloud-Browser:** Zwei sichtbare offizielle MUND-Dateilinks wurden
 tatsächlich geöffnet und die Originaldateien vollständig geladen. Die vollständigen
@@ -40,12 +112,17 @@ belegt weder ihre damalige Verfügbarkeit noch, welche Datei der PC tatsächlich
 geladen oder aus dem Cache verwendet hat. Die privaten Originale und
 Einzelnachweise bleiben außerhalb des Repositorys.
 
-**Nächster Schritt unverändert:** Im [bestehenden Auftrag](#naechster-schnitt)
-einmal den vorhandenen passiven P01-Quotehistory-Read mit `days=1` erhalten,
-um Cache- und Empfangsbezug der tatsächlichen PC-Versuche zu prüfen.
+**Damals nächster Read, inzwischen abgeschlossen:** Der vorhandene passive
+P01-Quotehistory-Read hat den Cache-/Empfangsbezug geliefert. Aktuell gilt die
+[passive Verbraucherabnahme im neuen Quotenfenster](#p01-quotehistory-20261127).
 
 <a id="p01-anwendung-20261127"></a>
 ## Fortschreibung — Product und Route gespeichert, V2 mangels Quote gesperrt, 27.11.2026
+
+**Fortgeschrieben:** Die anschließende [Quotehistory-Auswertung](#p01-quotehistory-20261127)
+bestätigt Cacheverwendung und Empfangszeiten. Die unten noch nicht belegte
+Cachefrage und der damalige nächste Read sind damit abgeschlossen;
+die datierten Anwendungs- und Verbraucherbefunde bleiben unverändert.
 
 **Observed — Anwendung bestätigt:** Der privat übermittelte PC-Lauf vom
 **27.11., 21:42:08,461468–22:02:41,974161 Uhr MEZ** verwendet den zuvor
@@ -113,7 +190,7 @@ P01-Takt: zwischen den beiden neuen P01-Jobstarts liegen rund 661 s.
 Gemeinsamer Cache, Limits und Backoff bleiben erhalten. Erfolgreiche
 regelmäßige P01-Preisversorgung und automatischer Wiederanlauf sind offen.
 
-**Genau nächster enger Schritt im selben Auftrag:** Den vorhandenen passiven
+**Damals nächster enger Schritt, inzwischen ausgeführt:** Den vorhandenen passiven
 `GET /api/v1/market-data/warrants/{tatsächliche_P01_warrant_id}/quote-history?days=1`
 einmal lesen. Dieser bestehende
 [Reader](../../backend/app/features/market_data/service/quote_history.py) liefert höchstens 50 gespeicherte
@@ -3370,7 +3447,7 @@ ist noch kein Veröffentlichungs- oder PC-Installationsbeleg behauptet.
 | Fachliche Abnahme | Historisch freigegebener PC-Übergang ist laut Nutzerbeleg ausgeführt. Fachliche Depotabdeckung nicht abgenommen. |
 | Software-Auslieferung | Im geprüften Main und veröffentlichten Tag v1.5.52 enthalten; konkrete Softwareauslieferung, keine dadurch erteilte Gesamtfachabnahme. |
 | Betriebsnachweis | PR [#367](https://github.com/burckhju/trading-workspace/pull/367), Nutzerbeleg 19.11.2026: v1.5.51/254f0bbd… installiert, vier Dienste healthy, Readiness 200/ready, Schema 20261118_0060. Audit 18:13:12 MEZ: V2-Zyklus 18:06:42–18:07:17 MEZ, 35,307 s, running=true, last_error=null; Review und Deadline je 6 bewertet/6 Datenprobleme/0 technische Positionsfehler. Kein eigener PC-Zugriff dieser Prüfung. Historische Ursache-/Liefernachweise aus [#368](https://github.com/burckhju/trading-workspace/pull/368) bleiben erhalten. Neuer [PC-Readback vom 22.11.2026](../reviews/DEPOT_DATA_READBACK_2026-11-22.md): v1.5.52/c7db441…, Schema0060, vier offene Positionen, regulärer V2-Zyklus mit 4/4 Einstands- und 4/4 Fristdatenproblemen bei jeweils null technischen Positionsfehlern. Getrennte Produktende-/Zahlungsrollen beobachtet; exakter Parserhead/Originalupgrade und konkreter Kalenderimport dadurch nicht vollständig nachgewiesen. Frühere Sechser-/Viererbefunde werden nicht über Kennungen hinweg gleichgesetzt. Späterer [P02-Read vom 24.11.2026](../reviews/P02_SOURCE_GAP_READBACK_2026-11-24.md): tatsächliches v1.5.54/9a5e59d…, Schema0060 und vier gesunde Dienste; historischer Timeout konkret, jüngeres `BELOW_ENTRY` mit Bid um 18:21:41 Uhr MEZ. Kein neuer Gesamtzyklus-/Inventar-/Fristnachweis. |
-| Restarbeit / nächste Abhängigkeit | Gesamt-, P02-, Quellenkandidaten- und P01-Ownerreads sowie Listinganlage und beide konkreten Vorschauen sind ausgeführt und ausgewertet. Die anschließende [Product-/Mappinganwendung und eindeutige Quellenauswahl](#p01-anwendung-20261127) sind bestätigt; Product-Einheitenrevision 1 liefert AVAILABLE. Eine neue regulär gespeicherte P01-V2-Bewertung bleibt UNAVAILABLE mangels Quote der aktuellen Route. Zwei P01-Refreshversuche liefern NO_QUOTE_RETURNED; Cache-/Empfangsbezug des gelieferten Batches fehlt im bisherigen Summary. **Einzige nächste Abhängigkeit:** [P01 für V2 versorgen](#naechster-schnitt), jetzt einmal den vorhandenen passiven P01-Quotehistory-GET mit days=1 lesen. Kein erneuter Import, Mappingapply, unveränderter Gesamtexport oder ungeprüfter großer Download. Positive aktuelle Quote, auswertbare Verbraucherabdeckung, regelmäßige erfolgreiche Versorgung und Wiederanlauf bleiben offen. P01-KID-Prüfung abgeschlossen: Einheit fehlt im Original, kein Parserfix. Tatsächlich gelesene gettex-Konfiguration und Privatnutzungsbestätigung erhalten. |
+| Restarbeit / nächste Abhängigkeit | Gesamt-, P02-, Quellenkandidaten- und P01-Ownerreads sowie Listinganlage und beide konkreten Vorschauen sind ausgeführt und ausgewertet. Die [Product-/Mappinganwendung und eindeutige Quellenauswahl](#p01-anwendung-20261127) sind bestätigt; Product-Einheitenrevision 1 liefert AVAILABLE. Eine neue regulär gespeicherte P01-V2-Bewertung bleibt UNAVAILABLE mangels Quote der aktuellen Route. Der [Quotehistory-Read](#p01-quotehistory-20261127) ist abgeschlossen: 11 leere HIT-Samples, sieben Batch-Empfangszeiten, passende PC-Identität. Die frühere positive Tagesprobe ist für die späteren Verbraucherzeitpunkte zu alt. **Einzige nächste Abhängigkeit:** [P01 für V2 versorgen](#naechster-schnitt), regulären Refresh und neue gespeicherte V2-Bewertung im nächsten tatsächlichen P01-Quotenfenster passiv abnehmen; Beobachtung geplant am 30.11.2026 um 16:00 Uhr MEZ mit einem bestehenden indicative-entry-GET. Kein erneuter Import, Mappingapply, Cache-Reset, Quotehistory- oder Gesamtexport. Positive aktuelle Quote, auswertbare Verbraucherabdeckung, regelmäßige erfolgreiche Versorgung und Wiederanlauf bleiben offen. P01-KID-Prüfung abgeschlossen: Einheit fehlt im Original, kein Parserfix. Tatsächlich gelesene gettex-Konfiguration und Privatnutzungsbestätigung erhalten. |
 | Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
 
 </details>
@@ -3454,19 +3531,21 @@ B04/B57/B58, Produktfristen und B06 bleiben getrennte Anforderungen.
    Die beobachtete Datei umfasst rund 657 MB. Der regelmäßige Abruf muss
    mit Bandbreite, Zeit- und Speichergrenzen des PCs vereinbar sein;
    keine eigene tägliche technische Handarbeit als Dauerlösung.
-5. **Neue reguläre Bewertung gelesen, Preisversorgung weiterhin offen:**
-   Der tatsächliche V2-Verbraucher speichert nach der Anwendung einen neuen
-   UNAVAILABLE-Entscheid mit NO_SAVED_QUOTE_FOR_CURRENT_ROUTE. Zwei reguläre
-   gettex-Versuche verwenden die richtige ausgewählte Route, liefern aber
-   NO_QUOTE_RETURNED. Der ergänzende [Handabruf](#p01-handabruf-20261127)
-   bestätigt zwei Originaldateien ohne P01-Treffer; die tatsächlich verwendete
-   PC-Datei und ihr Cache-/Empfangsbezug bleiben unbelegt.
-   **Genau nächster enger Read:** den bestehenden passiven
-   P01-Quotehistory-GET mit `days=1` ausführen, um `retrieved_at` und
-   `cache_status` der gespeicherten leeren Ergebnisse zu lesen. Danach den
-   konkreten Batch-/Quellenrest beim bestehenden Owner schließen und positive
-   gespeicherte Quote, Einheit, Quellenalter und Sitzungen am Verbraucher belegen.
-   Eine erreichbare Datei oder ein laufender Runner allein erfüllt die Abnahme nicht.
+5. **Quotehistory abgeschlossen; Preisversorgung weiterhin offen:**
+   Eine neue reguläre V2-Bewertung bleibt nach der Anwendung UNAVAILABLE mit
+   NO_SAVED_QUOTE_FOR_CURRENT_ROUTE. Der [enge PC-Read](#p01-quotehistory-20261127)
+   bestätigt 11 leere HIT-Samples und sieben verschiedene Batch-Empfangszeiten.
+   Die frühere positive Tagesprobe ist fehlerfrei lesbar, aber außerhalb der
+   bestehenden Frischegrenze; kein Import-, Parser- oder Cachefix ist belegt.
+   **Genau nächste Ausführung:** regulären Refresh und V2 im nächsten tatsächlichen
+   P01-Quotenfenster passiv abnehmen. Geplanter Beobachtungstermin ist
+   30.11.2026, 16:00 Uhr MEZ, ohne Zusage einer dann verfügbaren Quote.
+   Einmal den vorhandenen passiven `indicative-entry`-GET lesen: neue gespeicherte
+   Bewertung, positiver Bid, Quellenalter von 0 bis einschließlich 1.800 s,
+   separate Empfangszeit, mindestens 20 zum Quellenereignis passende Sitzungen
+   und Einheitenqualität belegen. Die bisherigen Produkt-/Mappinganwendungen
+   und den Quotehistory-Read nicht wiederholen; Limits, acht Fallbackfenster,
+   Cache und Taktung erhalten. Ein laufender Runner allein erfüllt die Abnahme nicht.
 
 **Benötigter Zugang / konkrete Entscheidung:** Der P01-KID-Lesezugang ist
 freigegeben und genutzt. Der erfolgreiche
@@ -3478,8 +3557,9 @@ Request, Reviewzeitpunkt, Datei- und Ownerbindungen sowie Previewfingerprint
 liegen privat vor. Die folgende [Anwendung](#p01-anwendung-20261127) ist
 tatsächlich ausgeführt und zurückgelesen; der Product-Import ist geschlossen.
 Ein eigener interaktiver PC-/DB-Zugang fehlt. Deshalb den noch benötigten
-engen passiven Quotehistory-Read über den identifizierten PC ausführen und
-seinen tatsächlichen Inhalt auswerten. Das vollständige alte Archiv und die bereits
+passiven V2-Verbraucherread zum geplanten Beobachtungstermin über den
+identifizierten PC ausführen. Die Quotehistory ist inzwischen ausgewertet;
+deren erneuter Export ist nicht der nächste Schritt. Das vollständige alte Archiv und die bereits
 qualifizierten PDF-Dateien müssen nicht erneut hochgeladen werden.
 Der [vorhandene Ablauf](../reviews/GETTEX_LISTING_UNIT_ORIGINALS_2026-11-25.md#5-vorbereitete-p01-import--und-mappingvorschau)
 verwendet die bestehenden Owner und Commands. Listinganlage, beide konkreten
@@ -3537,10 +3617,14 @@ gettex-Scan, aktuelle DB-Bindungen, READY_TO_IMPORT und echter Fingerprint.
 Observed — anschließend Product-Einheitenrevision 1, validiertes Mapping und
 eindeutige P01-Quellenauswahl tatsächlich gespeichert; Product liefert AVAILABLE.
 Observed — neue reguläre V2-Bewertung gespeichert, weiterhin UNAVAILABLE wegen
-fehlender aktueller Quote. Zwei gettex-Versuche ohne P01-Quote sind belegt;
-der bisher nicht enthaltene Cache-/Empfangsbezug ist der nächste enge Read.
+fehlender aktueller Quote. Der nachfolgende Quotehistory-Read belegt 11 leere
+HIT-Samples und sieben Batch-Empfangszeiten; diese Diagnoselücke ist geschlossen.
+Observed — frühere positive Tagesquote mit fehlerfreiem nativen Parser,
+aber für die späteren PC-/Verbraucherzeitpunkte außerhalb der Frischegrenze.
 Verbleibend sind positive aktuelle Quote, auswertbare Verbraucherabnahme,
-regelmäßige erfolgreiche Versorgung und Wiederanlauf. Die gespeicherte
+regelmäßige erfolgreiche Versorgung und Wiederanlauf; nächster Schritt ist
+die geplante passive V2-Abnahme nach regulärem Refresh im neuen Quotenfenster.
+Die gespeicherte
 Product-Einheit und Route allein erhöhen keine fachlich auswertbare Depotabdeckung.
 Die reine Collectorfertigstellung ist abgeschlossen. Zuständige Owner bleiben
 Product, Market Data und Position Monitoring; kein neuer Regelumfang wird freigegeben.
