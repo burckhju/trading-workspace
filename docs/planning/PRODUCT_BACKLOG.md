@@ -4,17 +4,102 @@
 
 | Feld | Wert |
 |---|---|
-| Revision | 27.11.2026: Nach Listinganlage und Mappingvorschau ist auch der echte datenbankgebundene Originalimportpreview erfolgreich belegt: vier Regeloriginale PIN_MATCH, vollständige lokale gettex-Datei qualifiziert, aktuelle Ownerbindungen, READY_TO_IMPORT und konkreter Previewfingerprint. Nächste Ausführung ist die bereits beauftragte Product-/Mappinganwendung mit genau diesem geprüften Request, anschließend Quellenauswahl, regulärer Refresh und gespeicherter V2-Verbraucherread. |
+| Revision | 27.11.2026: Product-Einheitenrevision 1, validiertes gettex-Mapping und eindeutige P01-MUND/EUR-Auswahl sind tatsächlich gespeichert. Product liefert in allen 40 passiven Beobachtungen AVAILABLE/CURRENCY_PER_WARRANT; KID-Revision 7 bleibt getrennt und unverändert. Eine neue reguläre V2-Bewertung ist gespeichert, weiterhin UNAVAILABLE wegen fehlender Quote der aktuellen Route. Nächster enger Schritt ist der bestehende passive P01-Quotehistory-Read zu den gespeicherten leeren gettex-Ergebnissen, insbesondere Empfangszeit und Cachestatus. |
 | Erstprüfung | 19.11.2026, 19:31:38 Uhr MEZ (Europe/Berlin), auf `254f0bbd52ab42e0120d381e915dc96c1118796c` / `v1.5.51` |
 | Fortschreibung | 20.11.2026, Beginn 13:46:04 Uhr MEZ; Main-/Release-Delta, tatsächliche CI, PR- und Betriebsnachweise erneut geprüft |
 | Geprüfter Produktstand | Ursprünglicher Daten-/Readervertrag auf `c7db441de36297a98d47cdf28c64b4e5d9994692` / v1.5.52; der ergänzende P01-Anschluss und P02-Resolverfix sind auf Release-Head `2701efa08c84c603c356e0312c0aefd409f4a4b0` und dem unten genannten Main jeweils eigenständig qualifiziert. Die Oberfläche behält ihre eigenen #372-Nachweise. |
 | Aktueller Main | `eb7f89a30a1772f2c140c5a11cdfb0284d80fc3c`, Merge #370 vom 25.11.2026, 08:37:31 Uhr MEZ, `VERSION=1.5.55`. Tag v1.5.55 wurde nach vollständiger Main-CI um 09:07:32 Uhr MEZ auf genau diesem Commit veröffentlicht. Main und Tag sind kein Nachweis einer PC-Installation. |
-| Tatsächlicher PC | Erfolgreicher Originalpreview vom 27.11.2026: belegtes Schema-/Originalprüffenster 21:04:06,724593–21:06:37,175362 Uhr MEZ, keine behauptete Gesamtlaufzeit. Frischer Ownerread 21:06:13,163031 Uhr, Previewabschluss 21:06:36,073649 Uhr MEZ. v1.5.55 auf `eb7f89a30a1772f2c140c5a11cdfb0284d80fc3c`, Schema `20261124_0061` vor/nach gelesen, vier gesunde Dienste, Installation vor/nach unverändert. Readiness 200/ready im Installationsbeleg vom 25.11.; letzte vollständige Inventur weiterhin vom 22.11. |
+| Tatsächlicher PC | Anwendungs-/Beobachtungslauf vom 27.11.2026, 21:42:08,461468–22:02:41,974161 Uhr MEZ: v1.5.55 auf `eb7f89a30a1772f2c140c5a11cdfb0284d80fc3c`, Schema `20261124_0061` vor/nach gelesen, vier gesunde Dienste, Installation und gelesene Betriebseinstellungen unverändert. Neue P01-Bewertung um 21:53:38,461959 Uhr MEZ gespeichert. Readiness 200/ready im Installationsbeleg vom 25.11.; letzte vollständige Inventur weiterhin vom 22.11. |
 | Funktion | Einzige maßgebliche Quelle des aktuellen Aufgabenstatus; bestehende PB-/FT-/M-Kennungen und Owner bleiben erhalten |
-| Prüfgrenze | Die privat übermittelten P01-Läufe sind ausgewertet. Listinganlage, Mappingvorschau und echter Originalimportpreview sind belegt; Product-Import und Mapping wurden noch nicht angewendet. Die historische Datei belegt Mitgliedschaft, keinen aktuellen Verbraucherpreis. Letzte gelesene gespeicherte V2-Bewertung weiterhin UNAVAILABLE. Kein eigener interaktiver PC-/DB-Zugang; gespeicherte Einheitenrevision, ausgewählte Route, neue auswertbare Bewertung und regelmäßige Versorgung bleiben unbelegt. |
+| Prüfgrenze | Tatsächliche Product-/Mappinganwendung und ausgewählte Route sind belegt; 40 passive Beobachtungen enthalten genau eine neue gespeicherte V2-Bewertung, weiterhin UNAVAILABLE. Zwei reguläre gettex-Versuche liefern NO_QUOTE_RETURNED ohne konkreten Transport-/Parserfehlercode. Der genaue verwendete Batch und sein Cache-/Empfangsbezug sind im gelieferten Refresh-Summary nicht enthalten. Kein eigener interaktiver PC-/DB-Zugang; frischer positiver Verbraucherbid, Sitzungen zum Quellenereignis, auswertbare Bewertung, regelmäßige erfolgreiche Versorgung und Wiederanlauf bleiben offen. |
+
+<a id="p01-anwendung-20261127"></a>
+## Fortschreibung — Product und Route gespeichert, V2 mangels Quote gesperrt, 27.11.2026
+
+**Observed — Anwendung bestätigt:** Der privat übermittelte PC-Lauf vom
+**27.11., 21:42:08,461468–22:02:41,974161 Uhr MEZ** verwendet den zuvor
+geprüften Originalrequest mit unveränderten Previewargumenten und erwartetem
+Fingerprint. Die bestehende CLI bestätigt `IMPORTED_OR_REUSED` /
+`PRODUCT_EVIDENCE_IMPORT_ONLY`; **Einheitenrevision 1** ist um
+**21:42:34,349282 Uhr MEZ** tatsächlich gespeichert und dem Request zugeordnet.
+Der folgende Mappingcommand liefert `CREATE_MAPPING`, `applied=true`;
+genau ein passendes gettex-Mapping ist **ACTIVE, validiert, Version 1**.
+`PositionQuoteSourceSelector` bestätigt die eindeutige MUND/EUR-Route als
+**SELECTED / UNIQUE_VERIFIED_ROUTE**; Auswahlcommit um 21:42:37,688132 Uhr MEZ
+bestätigt. Die vollständige bestehende Providerpolicy bleibt erhalten.
+Das reguläre Refresh-Wecksignal ist anschließend mit HTTP202/QUEUED bestätigt.
+Alle Commitgrenzen sind getrennt aufgezeichnet; kein unbekannter
+Anwendungsausgang ist für diese Schritte ausgewiesen.
+
+**Product-Ergebnis:** In allen **40 passiven Beobachtungen** liefern der
+listinggebundene Product-GET und der zusammengesetzte Product-Reader
+`AVAILABLE`, `CURRENCY_PER_WARRANT`, EUR und `CURRENT_UNIT_HISTORY_ASSUMED`;
+der zusammengesetzte Reader weist `LISTING_ORIGINAL` aus. Produkt, Terms,
+Basiswert, Listing und Venue passen. KID-Revision 7 und ihr Originalhash
+bleiben unverändert; die ergänzende Einheitenrevision bleibt separat gebunden.
+Die aktive Auswahl ist in allen 40 Snapshots bestätigt. v1.5.55/0061,
+vier gesunde Dienste und Betriebseinstellungen sind vor/nach unverändert.
+Damit sind Einheitenimport, Mappinganwendung und P01-Quellenauswahl geschlossen.
+
+**Tatsächlicher Verbraucher:** Genau **eine neue Bewertung**, bewertet um
+**21:53:38,398158 Uhr MEZ**, gespeichert um **21:53:38,461959 Uhr MEZ**,
+ist durch den passiven V2-Reader und den gespeicherten Ownerdatensatz identisch
+belegt. Sie liegt im regulären Zyklus **21:52:57,666782–21:53:38,783035 Uhr MEZ**.
+Ergebnis weiterhin `UNAVAILABLE` mit `NO_SAVED_QUOTE_FOR_CURRENT_ROUTE`,
+`PRODUCT_REVIEW_UNIT_UNPROVEN` und `REVIEW_CURRENT_PRODUCT_UNIT_CURRENCY_MISMATCH`.
+Die 40 Reads sind keine 40 Bewertungen oder 40 Providerabrufe.
+
+Im gespeicherten Verbraucherinput ist die ausgewählte MUND/EUR-Route bereits
+vorhanden, aber `saved_quote.provider=null`, `quote=null` und keine gespeicherte
+Erfolgsquote. Der bestehende
+[Inputcomposer](../../backend/app/features/position_monitoring/service/indicative_entry_inputs.py)
+übergibt ergänzende Listing-Evidenz
+nur zusammen mit der passenden tatsächlichen `saved.provider`-Provenienz.
+Ohne Quote bleibt der damalige Input deshalb KID-only mit `unit=null`.
+Die beiden Einheitencodes sind hier eine Folge dieses fehlenden Quoteinputs,
+kein fehlgeschlagener Product-Import und kein belegter eigenständiger EUR-Konflikt.
+**52 abgeschlossene Sitzungen** sind zum Bewertungszeitpunkt gezählt; ohne
+Quellenereignis sind sie noch kein entsprechender Ereignisnachweis.
+
+**Enger Refreshbefund:** Zwei abgeschlossene P01-Versuche nach der Anwendung,
+**21:46:09,690284–21:46:09,740671** und
+**21:57:10,608431–21:57:10,617113 Uhr MEZ**, verwenden GETTEX_DELAYED mit
+bestätigter unveränderter Identität und erhaltener ausgewählter Route.
+Beide liefern `MISSING / NO_QUOTE_RETURNED`, keine Quote und keine
+`provider_reason`/`refresh_error`; ein aktueller HTTP403, Timeout oder
+Parserfehler ist damit nicht belegt. Der unveränderte
+[Adapterpfad](../../backend/app/providers/gettex_delayed/adapter.py) erklärt
+dieses Resultat als **fehlenden erkannten P01-Quoteeintrag im gelieferten Batch**.
+Das ist ein Code-/Verarbeitungsbefund; konkrete Rohdatei, Dateifenster und
+externe Ursache sind damit nicht geprüft. Ein Cache-Hit ist angesichts der
+kurzen Rückgaben plausibel, aber durch Laufzeiten allein nicht nachgewiesen.
+Die bestehende Scanmengenprüfung verhindert, dass ein alter Cache ohne P01
+allein wegen der neuen Mappinganlage als vollständig verwendet wird.
+
+Refresh und Monitoring laufen; die Katalogprüfung schreitet fort. Das
+konfigurierte Refreshintervall von 300 s ist kein belegter tatsächlicher
+P01-Takt: zwischen den beiden neuen P01-Jobstarts liegen rund 661 s.
+Gemeinsamer Cache, Limits und Backoff bleiben erhalten. Erfolgreiche
+regelmäßige P01-Preisversorgung und automatischer Wiederanlauf sind offen.
+
+**Genau nächster enger Schritt im selben Auftrag:** Den vorhandenen passiven
+`GET /api/v1/market-data/warrants/{tatsächliche_P01_warrant_id}/quote-history?days=1`
+einmal lesen. Dieser bestehende
+[Reader](../../backend/app/features/market_data/service/quote_history.py) liefert höchstens 50 gespeicherte
+P01-Samples mit `captured_at`, `reason`, `retrieved_at`, `cache_status` und
+`quote`, auch bei leerem Kursergebnis. Damit den bislang fehlenden
+Cache-/Empfangsbezug der tatsächlichen Versuche klären. Dieser GET löst
+keinen Providerabruf aus; keine erneute Anwendung, kein Gesamtexport und
+kein ungeprüfter großer Download sind dafür erforderlich. Originalbidzeit,
+instrumentbezogenes OPEN, historische Strenge, Fristen, B06 und die übrigen
+B04/B57/B58-Abnahmegrenzen bleiben erhalten.
 
 <a id="p01-originalpreview-20261127"></a>
 ## Fortschreibung — echter datenbankgebundener Originalpreview erfolgreich, 27.11.2026
+
+**Anschließend ausgeführt:** Die [Product-/Mappinganwendung und ausgewählte Route](#p01-anwendung-20261127)
+sind inzwischen tatsächlich belegt. Die folgenden Anwendungsreste beschreiben
+den Preview-Zwischenstand um 21:06 Uhr, nicht den aktuellen nächsten Schritt.
 
 **Observed:** Der privat übermittelte PC-Handoff endet mit
 `REAL_DB_ORIGINAL_PREVIEW_READY`. Alle **vier tatsächlichen Regeloriginale**
@@ -3245,8 +3330,8 @@ ist noch kein Veröffentlichungs- oder PC-Installationsbeleg behauptet.
 | Nachweisfeld | Einordnung |
 |---|---|
 | Zuordnung | M11: Betrieb; Ziel A. Bereich/Querschnitt: Querschnitt: technische Qualität/Betrieb. Bestehender Bezug: bestehende Betriebs-/Releaseverantwortung. Lieferziel: A. |
-| Arbeitsstatus | Observed — tatsächliche Installation v1.5.55/eb7f89a…, Schema0061 und vier gesunde Dienste im engen P01-Ownerread sowie Listing-/Mappinglauf vom 27.11., Installation jeweils vor/nach unverändert; Bereitschaft ready im Nutzerbeleg vom 25.11.; enger P02-Verbraucherread am 24.11. auf v1.5.54; letzte Gesamtinventur/Zyklusdiagnose am 22.11. auf v1.5.52; Business Review — weitere Regelabdeckung und vollständige Originalupgrade-/Importabnahme. |
-| Abgeschlossener Teilumfang | Vollständiger privater Readback vom 22.11.2026: c7db441…/v1.5.52, Schema0060, vier gesunde Dienste, 30/30 GETs und vollständiges Vierer-Inventar. V2-Ausführung mit 4/4 Datenproblemen in beiden Prüfpfaden belegt. Am 24.11. ist v1.5.54/9a5e59d… separat verifiziert; der enge P02-Collector liefert historischen Gap und aktuellen gespeicherten V2-Entscheid mit Bid. Am 25.11. ist die anschließende v1.5.55-Installation mit Schema0061 und gesunden Diensten im Launcher-/Compose-/Alembic-Auszug belegt. Kein erneuter P02-Export erforderlich. |
+| Arbeitsstatus | Observed — tatsächliche Installation v1.5.55/eb7f89a…, Schema0061 und vier gesunde Dienste zuletzt im P01-Anwendungs-/Beobachtungslauf vom 27.11., Installation und Betriebseinstellungen unverändert; Product-Einheitenrevision und Route gespeichert, neuer regulärer P01-V2-Entscheid weiterhin UNAVAILABLE mangels Quote. Bereitschaft ready im Nutzerbeleg vom 25.11.; enger P02-Verbraucherread am 24.11. auf v1.5.54; letzte Gesamtinventur/Zyklusdiagnose am 22.11. auf v1.5.52; Business Review — weitere Regelabdeckung und vollständige Originalupgrade-/Importabnahme. |
+| Abgeschlossener Teilumfang | Vollständiger privater Readback vom 22.11.2026: c7db441…/v1.5.52, Schema0060, vier gesunde Dienste, 30/30 GETs und vollständiges Vierer-Inventar. V2-Ausführung mit 4/4 Datenproblemen in beiden Prüfpfaden belegt. Am 24.11. ist v1.5.54/9a5e59d… separat verifiziert; der enge P02-Collector liefert historischen Gap und aktuellen gespeicherten V2-Entscheid mit Bid. Am 25.11. ist die anschließende v1.5.55-Installation mit Schema0061 und gesunden Diensten im Launcher-/Compose-/Alembic-Auszug belegt. Am 27.11. sind P01-Einheitenimport, Mapping und Auswahl tatsächlich gespeichert; ein regulärer Zyklus erzeugt eine neue, mangels Quote weiterhin gesperrte P01-Bewertung. Kein erneuter P02-Export erforderlich. |
 | Soll / Nicht-Soll | **Soll:** JMBbot mit tatsächlich installierter Version/Commit, Schema, Compose-Provenienz, Daten-/Monitoring-/Zustellzuständen und Nachweiszeitpunkt identifizieren. **Nicht-Soll:** Keine Diagnoseanleitung als erfolgreichen Lauf ausgeben; kein Monitoring-Einmallauf, Deployment oder Nachricht. |
 | Befundklasse / Lückenart | Installation und datierte Verbraucherbefunde beobachtet; P02-Journalergänzung abgeschlossen. **Art der Restarbeit:** weitere Datenversorgung und gezielte Quellen-/Produktbindung, keine Wiederholung des pauschalen Betriebsnachweises. |
 | Implementierung / Consumer | Bestehender Launcher und [activate-indicative-monitoring.py](../../scripts/activate-indicative-monitoring.py) (prepare/apply) liefern zentralen kontrollierten Übergang. Passiver Runtime-Status und die beiden READ ONLY-Statusreader sind vorhanden; Diagnoseanleitung ist kein eigener Lauf. |
@@ -3254,7 +3339,7 @@ ist noch kein Veröffentlichungs- oder PC-Installationsbeleg behauptet.
 | Fachliche Abnahme | Historisch freigegebener PC-Übergang ist laut Nutzerbeleg ausgeführt. Fachliche Depotabdeckung nicht abgenommen. |
 | Software-Auslieferung | Im geprüften Main und veröffentlichten Tag v1.5.52 enthalten; konkrete Softwareauslieferung, keine dadurch erteilte Gesamtfachabnahme. |
 | Betriebsnachweis | PR [#367](https://github.com/burckhju/trading-workspace/pull/367), Nutzerbeleg 19.11.2026: v1.5.51/254f0bbd… installiert, vier Dienste healthy, Readiness 200/ready, Schema 20261118_0060. Audit 18:13:12 MEZ: V2-Zyklus 18:06:42–18:07:17 MEZ, 35,307 s, running=true, last_error=null; Review und Deadline je 6 bewertet/6 Datenprobleme/0 technische Positionsfehler. Kein eigener PC-Zugriff dieser Prüfung. Historische Ursache-/Liefernachweise aus [#368](https://github.com/burckhju/trading-workspace/pull/368) bleiben erhalten. Neuer [PC-Readback vom 22.11.2026](../reviews/DEPOT_DATA_READBACK_2026-11-22.md): v1.5.52/c7db441…, Schema0060, vier offene Positionen, regulärer V2-Zyklus mit 4/4 Einstands- und 4/4 Fristdatenproblemen bei jeweils null technischen Positionsfehlern. Getrennte Produktende-/Zahlungsrollen beobachtet; exakter Parserhead/Originalupgrade und konkreter Kalenderimport dadurch nicht vollständig nachgewiesen. Frühere Sechser-/Viererbefunde werden nicht über Kennungen hinweg gleichgesetzt. Späterer [P02-Read vom 24.11.2026](../reviews/P02_SOURCE_GAP_READBACK_2026-11-24.md): tatsächliches v1.5.54/9a5e59d…, Schema0060 und vier gesunde Dienste; historischer Timeout konkret, jüngeres `BELOW_ENTRY` mit Bid um 18:21:41 Uhr MEZ. Kein neuer Gesamtzyklus-/Inventar-/Fristnachweis. |
-| Restarbeit / nächste Abhängigkeit | Gesamt-, P02-, Quellenkandidaten- und enger P01-Ownerread sind ausgeführt und ausgewertet. Die [MUND/EUR-Listinganlage und echte Mappingvorschau](#p01-listing-mapping-20261127) sowie der [echte datenbankgebundene Originalpreview](#p01-originalpreview-20261127) vom 27.11. sind erfolgreich belegt. Alle fünf tatsächlichen Dateien sind am PC vorhanden und qualifiziert; CREATE_MAPPING und Product-Einheitenimport wurden noch nicht angewendet. **Einzige nächste Abhängigkeit:** [P01 für V2 versorgen](#naechster-schnitt), jetzt den geprüften Product-Request mit erwartetem Previewfingerprint und das vorgeschlagene Mapping über vorhandene Commands anwenden, Route auswählen und regulären gespeicherten V2-Verbraucher lesen. Letzter gelesener gespeicherter Entscheid weiterhin UNAVAILABLE; neue Verbraucherabdeckung, regelmäßige Versorgung und Wiederanlauf bleiben offen. Kein erneuter unveränderter Diagnoseexport. P01-KID-Prüfung abgeschlossen: Einheit fehlt im Original, kein Parserfix. Product-/V2-Anschluss und Originalpaket sind implementiert und qualifiziert; Lieferung und PC-Installation v1.5.55 sind belegt. Tatsächlich gelesene gettex-Konfiguration und Privatnutzungsbestätigung erhalten. |
+| Restarbeit / nächste Abhängigkeit | Gesamt-, P02-, Quellenkandidaten- und P01-Ownerreads sowie Listinganlage und beide konkreten Vorschauen sind ausgeführt und ausgewertet. Die anschließende [Product-/Mappinganwendung und eindeutige Quellenauswahl](#p01-anwendung-20261127) sind bestätigt; Product-Einheitenrevision 1 liefert AVAILABLE. Eine neue regulär gespeicherte P01-V2-Bewertung bleibt UNAVAILABLE mangels Quote der aktuellen Route. Zwei P01-Refreshversuche liefern NO_QUOTE_RETURNED; Cache-/Empfangsbezug des gelieferten Batches fehlt im bisherigen Summary. **Einzige nächste Abhängigkeit:** [P01 für V2 versorgen](#naechster-schnitt), jetzt einmal den vorhandenen passiven P01-Quotehistory-GET mit days=1 lesen. Kein erneuter Import, Mappingapply, unveränderter Gesamtexport oder ungeprüfter großer Download. Positive aktuelle Quote, auswertbare Verbraucherabdeckung, regelmäßige erfolgreiche Versorgung und Wiederanlauf bleiben offen. P01-KID-Prüfung abgeschlossen: Einheit fehlt im Original, kein Parserfix. Tatsächlich gelesene gettex-Konfiguration und Privatnutzungsbestätigung erhalten. |
 | Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
 
 </details>
@@ -3328,22 +3413,26 @@ B04/B57/B58, Produktfristen und B06 bleiben getrennte Anforderungen.
    Exitcode 0, READY_TO_IMPORT und konkreter `preview_fingerprint`.
    Alle fünf Dateien sind im Backend regulär lesbar und bytegleich zum Host.
    Die frühere PDF-Zugriffslücke ist geschlossen; keine erneute Dateisuche.
-4. **Nächste offene Ausführung:** Die ergänzende Product-Einheitenrevision mit
-   genau dem geprüften Request, Reviewzeitpunkt und erwartetem Previewfingerprint
-   sowie das konkret vorgeschlagene Mapping über die vorhandenen Commands anwenden.
-   Aktuelle Bindungen erneut gegen den geprüften Request sichern; Abweichungen
-   nicht durch automatisch neu erzeugte Vorschauen übergehen. Product-Readback
-   mit AVAILABLE und getrennter KID-/Einheitenrevision nachweisen.
-   Die bestätigte Route über bestehende Mappingadministration und
-   `PositionQuoteSourceSelector` anbinden; regulären Refresh, gemeinsamen
-   Dateicache, Backoff und gespeicherte Quoteweitergabe weiterverwenden.
+4. **Tatsächlich angewendet:** Der [PC-Anwendungslauf](#p01-anwendung-20261127)
+   bestätigt Product-Einheitenrevision 1 mit genau dem geprüften Request,
+   ein aktives validiertes Mapping und die eindeutige MUND/EUR-Auswahl über
+   `PositionQuoteSourceSelector`. Der Product-Readback liefert in allen 40
+   Beobachtungen AVAILABLE mit getrennter KID-/Einheitenrevision.
+   Regulärer Refresh, gemeinsamer Dateicache, Backoff und gespeicherte
+   Quoteweitergabe bleiben die vorhandenen Pfade; kein erneuter Apply.
    Die beobachtete Datei umfasst rund 657 MB. Der regelmäßige Abruf muss
    mit Bandbreite, Zeit- und Speichergrenzen des PCs vereinbar sein;
    keine eigene tägliche technische Handarbeit als Dauerlösung.
-5. Nach regulärer Verarbeitung den gespeicherten P01-V2-Input und Entscheid
-   lesen: gleiche Identität, positiver Bid, passende Einheit, Quellenalter
-   und Sitzungen. Eine erreichbare Datei oder ein laufender Runner allein
-   erfüllt die Abnahme nicht.
+5. **Neue reguläre Bewertung gelesen, Preisversorgung weiterhin offen:**
+   Der tatsächliche V2-Verbraucher speichert nach der Anwendung einen neuen
+   UNAVAILABLE-Entscheid mit NO_SAVED_QUOTE_FOR_CURRENT_ROUTE. Zwei reguläre
+   gettex-Versuche verwenden die richtige ausgewählte Route, liefern aber
+   NO_QUOTE_RETURNED. **Genau nächster enger Read:** den bestehenden passiven
+   P01-Quotehistory-GET mit `days=1` ausführen, um `retrieved_at` und
+   `cache_status` der gespeicherten leeren Ergebnisse zu lesen. Danach den
+   konkreten Batch-/Quellenrest beim bestehenden Owner schließen und positive
+   gespeicherte Quote, Einheit, Quellenalter und Sitzungen am Verbraucher belegen.
+   Eine erreichbare Datei oder ein laufender Runner allein erfüllt die Abnahme nicht.
 
 **Benötigter Zugang / konkrete Entscheidung:** Der P01-KID-Lesezugang ist
 freigegeben und genutzt. Der erfolgreiche
@@ -3352,15 +3441,16 @@ vier lokalen Regeloriginale und die vollständige historische gettex-Datei,
 ihre passenden Hashes, Integrität und P01-/MUND-/EUR-Mitgliedschaft.
 Die aktuelle KID-Revision und die tatsächliche Listing-ID sind frisch gebunden.
 Request, Reviewzeitpunkt, Datei- und Ownerbindungen sowie Previewfingerprint
-liegen privat vor und bilden den konkreten Anwendungsauftrag.
-Ein eigener interaktiver PC-/DB-Zugang fehlt; die Anwendung erfolgt deshalb
-über den privaten PC-Handoff und wird erst durch dessen tatsächliches Ergebnis
-als ausgeführt gewertet. Das vollständige alte Archiv und die bereits
+liegen privat vor. Die folgende [Anwendung](#p01-anwendung-20261127) ist
+tatsächlich ausgeführt und zurückgelesen; der Product-Import ist geschlossen.
+Ein eigener interaktiver PC-/DB-Zugang fehlt. Deshalb den noch benötigten
+engen passiven Quotehistory-Read über den identifizierten PC ausführen und
+seinen tatsächlichen Inhalt auswerten. Das vollständige alte Archiv und die bereits
 qualifizierten PDF-Dateien müssen nicht erneut hochgeladen werden.
 Der [vorhandene Ablauf](../reviews/GETTEX_LISTING_UNIT_ORIGINALS_2026-11-25.md#5-vorbereitete-p01-import--und-mappingvorschau)
-verwendet die bestehenden Owner und Commands. Die Listinganlage und beide
-konkreten Vorschauen sind abgeschlossen; die geprüfte Product-/Mappinganwendung
-ist durch den ursprünglichen Auftrag bereits autorisiert.
+verwendet die bestehenden Owner und Commands. Listinganlage, beide konkreten
+Vorschauen und die ursprünglich autorisierte Product-/Mappinganwendung samt
+Quellenauswahl sind abgeschlossen. Dafür ist keine Wiederholung erforderlich.
 Bestehende gettex-Aktivierung und technische Privatnutzungs-
 bestätigung sind datiert belegt; aktuelle Einstellungen, Downloadgrenzen,
 Cache und Taktung erhalten und eng prüfen. Keine pauschale neue Providerfreigabe,
@@ -3409,12 +3499,15 @@ weiterhin nicht auswertbarer V2-Entscheid belegt. Observed — anschließende
 MUND/EUR-Listinganlage über Product und echte Mappingvorschau mit CREATE_MAPPING,
 applied=false am selben Tag. Observed — anschließender erfolgreicher
 Originalpreview nach Bereitstellung aller vier Regelkopien: vollständiger
-gettex-Scan, aktuelle DB-Bindungen, READY_TO_IMPORT und echter Fingerprint;
-kein Product-Import angewendet. Verbleibend sind geprüfte
-Mapping-/Einheitenanwendung, Quellenauswahl und Verbraucherabnahme einschließlich
-regelmäßiger Versorgung und Wiederanlauf. Originalqualifikation,
-Ownerread, Listinganlage und erfolgreiche Vorschauen allein erhöhen keine
-fachlich auswertbare Depotabdeckung.
+gettex-Scan, aktuelle DB-Bindungen, READY_TO_IMPORT und echter Fingerprint.
+Observed — anschließend Product-Einheitenrevision 1, validiertes Mapping und
+eindeutige P01-Quellenauswahl tatsächlich gespeichert; Product liefert AVAILABLE.
+Observed — neue reguläre V2-Bewertung gespeichert, weiterhin UNAVAILABLE wegen
+fehlender aktueller Quote. Zwei gettex-Versuche ohne P01-Quote sind belegt;
+der bisher nicht enthaltene Cache-/Empfangsbezug ist der nächste enge Read.
+Verbleibend sind positive aktuelle Quote, auswertbare Verbraucherabnahme,
+regelmäßige erfolgreiche Versorgung und Wiederanlauf. Die gespeicherte
+Product-Einheit und Route allein erhöhen keine fachlich auswertbare Depotabdeckung.
 Die reine Collectorfertigstellung ist abgeschlossen. Zuständige Owner bleiben
 Product, Market Data und Position Monitoring; kein neuer Regelumfang wird freigegeben.
 
