@@ -4,14 +4,50 @@
 
 | Feld | Wert |
 |---|---|
-| Revision | 27.11.2026: Enger P01-Ownerread sowie anschließende tatsächliche MUND/EUR-Listinganlage und echte Mappingvorschau ausgewertet. Das Listing ist gespeichert; der vorhandene Command liefert CREATE_MAPPING mit applied=false. Eine anschließende Nutzerpfadsuche findet einen historischen gettex-Dateikandidaten auf dem PC; Vollständigkeit und P01-Mitgliedschaft sind ungeprüft. Nächste offene Ausführung bleibt die Originalimportvorschau mit tatsächlichen Dateien; Mapping-/Einheitenanwendung und Verbraucherabnahme bleiben offen. |
+| Revision | 27.11.2026: P01-Listinganlage und echte Mappingvorschau sind belegt. Der folgende tatsächliche PC-Handoff scheitert vor dem Importpreview an HTTP403 für alle drei Börsen-PDFs; BSW wird bytegleich geladen. Der historische gettex-Kandidat ist als reguläre Datei mit 586.249.635 Bytes bestätigt, noch ohne vollständigen Scan. Nächste Voraussetzung sind die drei lokalen Originalkopien für denselben vorhandenen Previewpfad; Mapping-/Einheitenanwendung und Verbraucherabnahme bleiben offen. |
 | Erstprüfung | 19.11.2026, 19:31:38 Uhr MEZ (Europe/Berlin), auf `254f0bbd52ab42e0120d381e915dc96c1118796c` / `v1.5.51` |
 | Fortschreibung | 20.11.2026, Beginn 13:46:04 Uhr MEZ; Main-/Release-Delta, tatsächliche CI, PR- und Betriebsnachweise erneut geprüft |
 | Geprüfter Produktstand | Ursprünglicher Daten-/Readervertrag auf `c7db441de36297a98d47cdf28c64b4e5d9994692` / v1.5.52; der ergänzende P01-Anschluss und P02-Resolverfix sind auf Release-Head `2701efa08c84c603c356e0312c0aefd409f4a4b0` und dem unten genannten Main jeweils eigenständig qualifiziert. Die Oberfläche behält ihre eigenen #372-Nachweise. |
 | Aktueller Main | `eb7f89a30a1772f2c140c5a11cdfb0284d80fc3c`, Merge #370 vom 25.11.2026, 08:37:31 Uhr MEZ, `VERSION=1.5.55`. Tag v1.5.55 wurde nach vollständiger Main-CI um 09:07:32 Uhr MEZ auf genau diesem Commit veröffentlicht. Main und Tag sind kein Nachweis einer PC-Installation. |
-| Tatsächlicher PC | Listing-/Mappinglauf vom 27.11.2026, Abschluss 16:18:35,747273 Uhr MEZ: v1.5.55 auf `eb7f89a30a1772f2c140c5a11cdfb0284d80fc3c`, Schema `20261124_0061` vor der Aktion gelesen, vier gesunde Dienste, Installation vor/nach unverändert. Enger P01-Ownerread desselben Tages 15:56:01,482754 Uhr MEZ; Readiness 200/ready im Installationsbeleg vom 25.11. Letzte vollständige Inventur weiterhin vom 22.11. |
+| Tatsächlicher PC | Originalbereitstellung vom 27.11.2026: belegtes Schema-/Originalprüffenster 20:44:17,859547–20:44:22,271963 Uhr MEZ, keine behauptete Gesamtlaufzeit. v1.5.55 auf `eb7f89a30a1772f2c140c5a11cdfb0284d80fc3c`, Schema `20261124_0061` vor/nach gelesen, vier gesunde Dienste, Installation vor/nach unverändert. Listing-/Mappinglauf 16:18:35,747273 Uhr MEZ, enger P01-Ownerread 15:56:01,482754 Uhr MEZ. Readiness 200/ready im Installationsbeleg vom 25.11.; letzte vollständige Inventur weiterhin vom 22.11. |
 | Funktion | Einzige maßgebliche Quelle des aktuellen Aufgabenstatus; bestehende PB-/FT-/M-Kennungen und Owner bleiben erhalten |
-| Prüfgrenze | Die privat übermittelten tatsächlichen P01-Läufe vom 27.11. sind ausgewertet. Listinganlage und Mappingvorschau sind jetzt belegt; Mapping wurde noch nicht angewendet. Letzte gelesene gespeicherte V2-Bewertung weiterhin UNAVAILABLE. Kein eigener interaktiver PC-/DB-Zugang; Originalimportfingerprint, Product-Einheitenimport und neuer Verbraucherread nach Listinganlage fehlen |
+| Prüfgrenze | Die privat übermittelten P01-Läufe sind ausgewertet. Listinganlage und Mappingvorschau sind belegt; Mapping wurde noch nicht angewendet. Der jüngste Handoff endet an drei konkreten PDF-Zugriffsfehlern, vor Übertragung der Originaldateien und frischem P01-/KID-Read. Letzte gelesene gespeicherte V2-Bewertung weiterhin UNAVAILABLE. Kein eigener interaktiver PC-/DB-Zugang; Originalimportfingerprint, Product-Einheitenimport und neuer Verbraucherread nach Listinganlage fehlen |
+
+<a id="p01-originalzugang-20261127"></a>
+## Fortschreibung — Originalbereitstellung am PC durch drei HTTP403 begrenzt, 27.11.2026
+
+**Observed:** Der privat übermittelte Handoff endet mit
+`ORIGINAL_PREVIEW_NOT_COMPLETE` / `ACTUAL_RULE_ORIGINALS_MISSING_OR_INVALID`.
+Die drei festen Börsen-PDF-Adressen liefern am **27.11., 20:44:18,943025 bis
+20:44:19,388792 Uhr MEZ** jeweils `ORIGINAL_HTTP_ERROR`, HTTP403.
+Die Ursache hinter der HTTP-Ablehnung ist nicht belegt. BSW wird anschließend
+mit HTTP200 und **`PIN_MATCH`, 2.835.859 Bytes**, vollständig geladen;
+Abschluss 20:44:21,166909 Uhr MEZ. Der beobachtete Hash entspricht dem festen
+Produktionspin. Diese Dateikopie ist nun auch auf dem PC vorhanden.
+
+Die Installation bleibt vor/nach identisch und gesund auf v1.5.55;
+beide Schemaabfragen ergeben `20261124_0061`. Das ausgegebene
+`matches_reviewed_reference=false` vergleicht ausschließlich mit der alten
+Collector-Referenz `20261118_0060`; die erwartete Schemaversion ist bestätigt.
+Der lokale gettex-Kandidat vom 09.09. ist als reguläre Datei mit
+**586.249.635 Bytes** innerhalb des vorhandenen Limits von 1 GiB bestätigt.
+Hash, vollständige gzip-/CRC-Gültigkeit und P01-Mitgliedschaft sind ungeprüft.
+Ein privates Backendverzeichnis wurde angelegt; **`staged_files` ist leer**.
+Der frische P01-/KID-Bindungsread und die eigentliche Originalimport-CLI sind
+noch nicht erreicht. Kein Fingerprint, Product-Import, Mappingapply, Refresh
+oder neuer V2-Verbraucherbefund wird aus diesem Lauf abgeleitet; gleichzeitig
+laufender regulärer Betrieb ist nicht Gegenstand dieses Nachweises.
+
+**Genau nächste Voraussetzung im selben Auftrag:** Die drei bereits
+qualifizierten Börsen-PDFs als tatsächliche lokale Originalkopien im vorhandenen
+privaten PC-Ordner bereitstellen. Die passende BSW-Kopie liegt dort bereits.
+Den vorhandenen privaten Handoff anschließend mit **`--originals-dir`** auf
+diesen Ordner ausführen: ausschließlich lokale Originale, erneute Pinprüfung,
+erhaltener vollständiger gettex-Dateiname, frische Ownerbindungen und danach
+die bestehende CLI ohne `--apply`. Der konkrete Ordner ist privat übergeben.
+Keine unveränderten HTTP-Retries, neue Quellenqualifikation, neue Freigabe,
+Codeänderung oder Gesamtdiagnose ist dafür erforderlich. Private Pfade,
+Kennungen und Originaldaten bleiben außerhalb des Repositorys.
 
 <a id="p01-listing-mapping-20261127"></a>
 ## Fortschreibung — MUND-Listing gespeichert und Mapping vorgeschaut, 27.11.2026
@@ -47,16 +83,17 @@ Schemalücke ist hierfür erkennbar. Die drei bereits qualifizierten Börsen-PDF
 beziehungsweise ihre PC-Pfade fehlen in diesem Arbeitsraum; BSW ist bytegleich
 vorhanden. Die anschließende lesende Nutzerpfadsuche am 27.11. findet auf dem PC
 **`pretrade.20260909.20.00.mund.csv.gz`**. Ihr tatsächlicher Pfad ist privat
-übergeben; Größe, vollständige gzip-Integrität und P01-Mitgliedschaft sind noch
+übergeben. Der [anschließende Handoff](#p01-originalzugang-20261127) bestätigt
+586.249.635 Bytes; vollständige gzip-Integrität und P01-Mitgliedschaft sind noch
 nicht geprüft. Der bestehende Originalpreview soll zuerst diese vorhandene
 Datei vollständig prüfen. Ihr älteres Datum ist für die Mitgliedschaft zulässig;
 die Regelbeobachtungsgrenze betrifft das spätere Verbraucherereignis. Ein neuer
 großer gettex-Download ist vor diesem konkreten Scan nicht erforderlich.
 Die drei Börsen-PDFs wurden unter ihren Originalnamen bei der Pfadsuche nicht
-gefunden. Ihre einmalige Bereitstellung von den fest hinterlegten offiziellen
-Adressen bleibt durch die bekannten Originalhashes begrenzt; eine Fehlerseite,
-ein fehlgeschlagener Abruf oder abweichende Bytes dürfen keinen Previewerfolg
-erzeugen. Die im Adapter verwendete
+gefunden. Der anschließende tatsächliche PC-Abruf der fest hinterlegten
+offiziellen Adressen liefert dreimal HTTP403. Deshalb sind jetzt die lokalen
+Originalkopien erforderlich; die bekannten Originalhashes bleiben maßgeblich.
+Die im Adapter verwendete
 `SpooledTemporaryFile` wird nach dem Scan geschlossen; der gemeinsame Cache
 enthält ausgewertete Kursdaten und **kein dauerhaftes gzip-Originalarchiv**.
 Ein solches Cacheverzeichnis wird daher nicht vorausgesetzt oder angefordert.
@@ -3136,7 +3173,7 @@ ist noch kein Veröffentlichungs- oder PC-Installationsbeleg behauptet.
 | Fachliche Abnahme | Historisch freigegebener PC-Übergang ist laut Nutzerbeleg ausgeführt. Fachliche Depotabdeckung nicht abgenommen. |
 | Software-Auslieferung | Im geprüften Main und veröffentlichten Tag v1.5.52 enthalten; konkrete Softwareauslieferung, keine dadurch erteilte Gesamtfachabnahme. |
 | Betriebsnachweis | PR [#367](https://github.com/burckhju/trading-workspace/pull/367), Nutzerbeleg 19.11.2026: v1.5.51/254f0bbd… installiert, vier Dienste healthy, Readiness 200/ready, Schema 20261118_0060. Audit 18:13:12 MEZ: V2-Zyklus 18:06:42–18:07:17 MEZ, 35,307 s, running=true, last_error=null; Review und Deadline je 6 bewertet/6 Datenprobleme/0 technische Positionsfehler. Kein eigener PC-Zugriff dieser Prüfung. Historische Ursache-/Liefernachweise aus [#368](https://github.com/burckhju/trading-workspace/pull/368) bleiben erhalten. Neuer [PC-Readback vom 22.11.2026](../reviews/DEPOT_DATA_READBACK_2026-11-22.md): v1.5.52/c7db441…, Schema0060, vier offene Positionen, regulärer V2-Zyklus mit 4/4 Einstands- und 4/4 Fristdatenproblemen bei jeweils null technischen Positionsfehlern. Getrennte Produktende-/Zahlungsrollen beobachtet; exakter Parserhead/Originalupgrade und konkreter Kalenderimport dadurch nicht vollständig nachgewiesen. Frühere Sechser-/Viererbefunde werden nicht über Kennungen hinweg gleichgesetzt. Späterer [P02-Read vom 24.11.2026](../reviews/P02_SOURCE_GAP_READBACK_2026-11-24.md): tatsächliches v1.5.54/9a5e59d…, Schema0060 und vier gesunde Dienste; historischer Timeout konkret, jüngeres `BELOW_ENTRY` mit Bid um 18:21:41 Uhr MEZ. Kein neuer Gesamtzyklus-/Inventar-/Fristnachweis. |
-| Restarbeit / nächste Abhängigkeit | Gesamt-, P02-, Quellenkandidaten- und enger P01-Ownerread sind ausgeführt und ausgewertet. Die anschließende [MUND/EUR-Listinganlage und echte Mappingvorschau](#p01-listing-mapping-20261127) vom 27.11. sind erfolgreich belegt; CREATE_MAPPING wurde noch nicht angewendet. **Einzige nächste Abhängigkeit:** [P01 für V2 versorgen](#naechster-schnitt), jetzt tatsächliche Originaldateien für den datenbankgebundenen Importpreview bereitstellen und vorhandene CLI ohne --apply ausführen. Letzter gelesener gespeicherter V2-Entscheid weiterhin UNAVAILABLE, kein Verbraucherbid; kein neuer Verbraucherread nach Listinganlage. Kein erneuter unveränderter Diagnoseexport. P01-KID-Prüfung abgeschlossen: Einheit fehlt im Original, kein Parserfix. Product-/V2-Anschluss und Originalpaket sind implementiert und qualifiziert; Lieferung und PC-Installation v1.5.55 sind belegt. Originalimportvorschau, geprüfte Anwendung und Verbraucherabnahme bleiben offen. Tatsächlich gelesene gettex-Konfiguration und Privatnutzungsbestätigung erhalten. |
+| Restarbeit / nächste Abhängigkeit | Gesamt-, P02-, Quellenkandidaten- und enger P01-Ownerread sind ausgeführt und ausgewertet. Die anschließende [MUND/EUR-Listinganlage und echte Mappingvorschau](#p01-listing-mapping-20261127) vom 27.11. sind erfolgreich belegt; CREATE_MAPPING wurde noch nicht angewendet. Der [PC-Originalabruf](#p01-originalzugang-20261127) bestätigt drei HTTP403 und eine passende BSW-Kopie. **Einzige nächste Abhängigkeit:** [P01 für V2 versorgen](#naechster-schnitt), jetzt die drei lokalen Börsenoriginale ergänzen und denselben Handoff mit --originals-dir bis zum datenbankgebundenen Importpreview ohne --apply ausführen. Letzter gelesener gespeicherter V2-Entscheid weiterhin UNAVAILABLE, kein Verbraucherbid; kein neuer Verbraucherread nach Listinganlage. Kein erneuter unveränderter Diagnoseexport. P01-KID-Prüfung abgeschlossen: Einheit fehlt im Original, kein Parserfix. Product-/V2-Anschluss und Originalpaket sind implementiert und qualifiziert; Lieferung und PC-Installation v1.5.55 sind belegt. Originalimportvorschau, geprüfte Anwendung und Verbraucherabnahme bleiben offen. Tatsächlich gelesene gettex-Konfiguration und Privatnutzungsbestätigung erhalten. |
 | Umfangsentscheidung | Bestehender Umfang bleibt erhalten. Offene Nachweise oder Erweiterungen sind keine belegte Verschiebung oder Entfernung ursprünglicher Zusagen. |
 
 </details>
@@ -3205,7 +3242,11 @@ B04/B57/B58, Produktfristen und B06 bleiben getrennte Anforderungen.
 3. **Nächste offene Ausführung:** Die vorhandene
    `app.tools.import_listing_unit_originals` ohne `--apply` mit vier tatsächlichen
    Regeloriginalen, einer vollständigen lokalen gettex-Datei und den aktuellen
-   Produkt-/Terms-/Listing-/KID-Bindungen ausführen. Die aktuelle KID-Revision
+   Produkt-/Terms-/Listing-/KID-Bindungen ausführen. Der tatsächliche
+   [PC-Versuch](#p01-originalzugang-20261127) endet vor diesem Aufruf an HTTP403
+   für die drei Börsen-PDFs. BSW ist am PC bytegleich vorhanden; die drei lokalen
+   Originalkopien ergänzen und im vorhandenen Handoff `--originals-dir` verwenden.
+   Die aktuelle KID-Revision
    unmittelbar vor dem Preview lesen. Im Backend müssen die Dateien als reguläre
    lesbare Dateien vorliegen; Hostpfade allein genügen nicht. Erst ein erfolgreicher
    datenbankgebundener Lauf liefert den konkreten `preview_fingerprint`.
@@ -3226,10 +3267,11 @@ B04/B57/B58, Produktfristen und B06 bleiben getrennte Anforderungen.
 **Benötigter Zugang / konkrete Entscheidung:** Der P01-KID-Lesezugang ist
 freigegeben und genutzt; alle vier Regeloriginale sind vorhanden und geprüft.
 Das bezeichnet den ursprünglichen Nachweisstand. Im neuen Arbeitsraum ist
-BSW wieder bytegleich vorhanden; die drei Börsen-Dateikopien und ein eigener
-interaktiver PC-/DB-Zugang fehlen weiterhin. Der privat übermittelte PC-Pfad
-zur historischen gettex-Datei vom 09.09. ist jetzt vorhanden; Originalintegrität
-und P01-Mitgliedschaft bleiben bis zum tatsächlichen Scan offen. Der übermittelte
+BSW wieder bytegleich vorhanden und inzwischen auch am PC erfolgreich bezogen;
+die drei Börsen-Dateikopien fehlen nach konkret beobachtetem HTTP403 weiterhin.
+Ein eigener interaktiver PC-/DB-Zugang fehlt. Der privat übermittelte PC-Pfad
+zur historischen gettex-Datei vom 09.09. und ihre Größe sind jetzt bestätigt;
+Originalintegrität und P01-Mitgliedschaft bleiben bis zum tatsächlichen Scan offen. Der übermittelte
 [enge P01-Ownerread](#p01-ownerread-20261127) enthält die validierte
 P01-Referenz aus dem Originalarchiv und die aktuellen privaten Ownerbindungen.
 Der folgende [Listing-/Mappinglauf](#p01-listing-mapping-20261127) ergänzt
@@ -3288,7 +3330,10 @@ Observed — vollständiger archivgebundener P01-Ownerread vom 27.11.; konkrete
 damals fehlende MUND-Listingreferenz, aktuelle Einstellungen und neuer gespeicherter,
 weiterhin nicht auswertbarer V2-Entscheid belegt. Observed — anschließende
 MUND/EUR-Listinganlage über Product und echte Mappingvorschau mit CREATE_MAPPING,
-applied=false am selben Tag. Verbleibend sind Originalimportvorschau, geprüfte
+applied=false am selben Tag. Observed — folgender PC-Handoff mit drei HTTP403
+für Börsen-PDFs, BSW-Pinmatch und ungeprüftem gettex-Kandidaten; Abbruch vor
+Originalpreview. Verbleibend sind die drei lokalen Originalkopien,
+Originalimportvorschau, geprüfte
 Mapping-/Einheitenanwendung und Verbraucherabnahme. Originalqualifikation,
 Ownerread, Listinganlage und Mappingvorschau allein erhöhen keine
 fachlich auswertbare Depotabdeckung.
