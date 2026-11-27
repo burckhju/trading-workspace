@@ -4,7 +4,7 @@
 
 | Feld | Wert |
 |---|---|
-| Revision | 27.11.2026: Enger P01-Ownerread sowie anschließende tatsächliche MUND/EUR-Listinganlage und echte Mappingvorschau ausgewertet. Das Listing ist gespeichert; der vorhandene Command liefert CREATE_MAPPING mit applied=false. Nächste offene Ausführung ist die Originalimportvorschau mit tatsächlichen Dateien; Mapping-/Einheitenanwendung und Verbraucherabnahme bleiben offen. |
+| Revision | 27.11.2026: Enger P01-Ownerread sowie anschließende tatsächliche MUND/EUR-Listinganlage und echte Mappingvorschau ausgewertet. Das Listing ist gespeichert; der vorhandene Command liefert CREATE_MAPPING mit applied=false. Eine anschließende Nutzerpfadsuche findet einen historischen gettex-Dateikandidaten auf dem PC; Vollständigkeit und P01-Mitgliedschaft sind ungeprüft. Nächste offene Ausführung bleibt die Originalimportvorschau mit tatsächlichen Dateien; Mapping-/Einheitenanwendung und Verbraucherabnahme bleiben offen. |
 | Erstprüfung | 19.11.2026, 19:31:38 Uhr MEZ (Europe/Berlin), auf `254f0bbd52ab42e0120d381e915dc96c1118796c` / `v1.5.51` |
 | Fortschreibung | 20.11.2026, Beginn 13:46:04 Uhr MEZ; Main-/Release-Delta, tatsächliche CI, PR- und Betriebsnachweise erneut geprüft |
 | Geprüfter Produktstand | Ursprünglicher Daten-/Readervertrag auf `c7db441de36297a98d47cdf28c64b4e5d9994692` / v1.5.52; der ergänzende P01-Anschluss und P02-Resolverfix sind auf Release-Head `2701efa08c84c603c356e0312c0aefd409f4a4b0` und dem unten genannten Main jeweils eigenständig qualifiziert. Die Oberfläche behält ihre eigenen #372-Nachweise. |
@@ -45,8 +45,18 @@ tatsächlich erzeugten Listing-ID, unmittelbar neu gelesener KID-Revision und
 allen fünf vollständigen Originaldateien ausführen. Keine weitere Code- oder
 Schemalücke ist hierfür erkennbar. Die drei bereits qualifizierten Börsen-PDFs
 beziehungsweise ihre PC-Pfade fehlen in diesem Arbeitsraum; BSW ist bytegleich
-vorhanden. Zusätzlich fehlt eine vollständig erhaltene lokale
-`pretrade.*.mund.csv.gz` beziehungsweise ihr PC-Pfad. Die im Adapter verwendete
+vorhanden. Die anschließende lesende Nutzerpfadsuche am 27.11. findet auf dem PC
+**`pretrade.20260909.20.00.mund.csv.gz`**. Ihr tatsächlicher Pfad ist privat
+übergeben; Größe, vollständige gzip-Integrität und P01-Mitgliedschaft sind noch
+nicht geprüft. Der bestehende Originalpreview soll zuerst diese vorhandene
+Datei vollständig prüfen. Ihr älteres Datum ist für die Mitgliedschaft zulässig;
+die Regelbeobachtungsgrenze betrifft das spätere Verbraucherereignis. Ein neuer
+großer gettex-Download ist vor diesem konkreten Scan nicht erforderlich.
+Die drei Börsen-PDFs wurden unter ihren Originalnamen bei der Pfadsuche nicht
+gefunden. Ihre einmalige Bereitstellung von den fest hinterlegten offiziellen
+Adressen bleibt durch die bekannten Originalhashes begrenzt; eine Fehlerseite,
+ein fehlgeschlagener Abruf oder abweichende Bytes dürfen keinen Previewerfolg
+erzeugen. Die im Adapter verwendete
 `SpooledTemporaryFile` wird nach dem Scan geschlossen; der gemeinsame Cache
 enthält ausgewertete Kursdaten und **kein dauerhaftes gzip-Originalarchiv**.
 Ein solches Cacheverzeichnis wird daher nicht vorausgesetzt oder angefordert.
@@ -3216,9 +3226,10 @@ B04/B57/B58, Produktfristen und B06 bleiben getrennte Anforderungen.
 **Benötigter Zugang / konkrete Entscheidung:** Der P01-KID-Lesezugang ist
 freigegeben und genutzt; alle vier Regeloriginale sind vorhanden und geprüft.
 Das bezeichnet den ursprünglichen Nachweisstand. Im neuen Arbeitsraum ist
-BSW wieder bytegleich vorhanden; die drei Börsen-Dateikopien, die vollständige
-gettex-Datei und ein eigener interaktiver PC-/DB-Zugang fehlen weiterhin, wie
-im [Liefernachtrag](#p01-lieferung-20261125) konkret abgegrenzt. Der übermittelte
+BSW wieder bytegleich vorhanden; die drei Börsen-Dateikopien und ein eigener
+interaktiver PC-/DB-Zugang fehlen weiterhin. Der privat übermittelte PC-Pfad
+zur historischen gettex-Datei vom 09.09. ist jetzt vorhanden; Originalintegrität
+und P01-Mitgliedschaft bleiben bis zum tatsächlichen Scan offen. Der übermittelte
 [enge P01-Ownerread](#p01-ownerread-20261127) enthält die validierte
 P01-Referenz aus dem Originalarchiv und die aktuellen privaten Ownerbindungen.
 Der folgende [Listing-/Mappinglauf](#p01-listing-mapping-20261127) ergänzt
