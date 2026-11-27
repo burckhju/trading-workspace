@@ -49,6 +49,22 @@ Keine unveränderten HTTP-Retries, neue Quellenqualifikation, neue Freigabe,
 Codeänderung oder Gesamtdiagnose ist dafür erforderlich. Private Pfade,
 Kennungen und Originaldaten bleiben außerhalb des Repositorys.
 
+**Ergänzende Dateibeschaffung nach bestätigtem Fehlen am PC:** Die offizielle
+[Regelwerksübersicht der Börse München](https://www.boerse-muenchen.de/handel-support/regelwerk)
+verlinkt dieselben drei Dateinamen unter ihrer eigenen Veröffentlichung:
+[Börsenordnung](https://www.boerse-muenchen.de/fileadmin/user_upload/Regelwerk_und_Handelsteilnehmer_werden/261102_Boersenordnung.pdf),
+[Handelsordnung](https://www.boerse-muenchen.de/fileadmin/user_upload/Regelwerk_und_Handelsteilnehmer_werden/180103_Handelsordnung_Freiverkehr.pdf)
+und [Ausführungsbestimmungen](https://www.boerse-muenchen.de/fileadmin/user_upload/Regelwerk_und_Handelsteilnehmer_werden/250117_Ausfuehrungsbestimmungen.pdf).
+Diese öffentlich verlinkten PDFs sind im Webleser lesbar. Die drei einmaligen,
+begrenzten direkten Dateiabrufe von dieser anderen offiziellen Veröffentlichung
+liefern hier am 27.11., 20:56:34–20:56:49 Uhr MEZ jedoch ebenfalls HTTP403.
+Es ist keine neue vollständige Dateikopie und keine Bytegleichheit nachgewiesen.
+Die Nutzerbestätigung, dass die PDFs am PC fehlen, ersetzt keine Dateibereitstellung.
+Die konkreten offiziellen Links sind deshalb für einen normalen Browserdownload
+auf dem PC bereitgestellt; dessen Erfolg bleibt offen. Der anschließende lokale
+Handoff akzeptiert weiterhin ausschließlich die vorhandenen Produktionspins.
+Katalog, Quellenqualifikation und ursprüngliche Abnahmegrenzen bleiben unverändert.
+
 <a id="p01-listing-mapping-20261127"></a>
 ## Fortschreibung — MUND-Listing gespeichert und Mapping vorgeschaut, 27.11.2026
 
