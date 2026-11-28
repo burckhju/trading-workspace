@@ -42,11 +42,23 @@ function show(item: TradePlanOverviewItem) {
 }
 
 describe('TradePlan purchase progress', () => {
-  it('does not interpret approval or an older API as an unbought plan', () => {
-    show(plan);
-    expect(screen.getByText('Kaufstatus ungeklärt')).toBeInTheDocument();
-    expect(screen.queryByText(purchaseLabels.NOT_STARTED)).not.toBeInTheDocument();
-  });
+  it.each([undefined, null])(
+    'explains missing execution data (%s) without inventing a purchase or an update requirement',
+    (execution) => {
+      show({ ...plan, execution });
+      expect(screen.getByText('Kaufstatus ungeklärt')).toBeInTheDocument();
+      expect(screen.getByText(/Keine Kaufstatusdaten verfügbar/)).toHaveTextContent(
+        'Ob ein Kauf erfasst wurde, bleibt ungeklärt.',
+      );
+      expect(screen.getByText(/Keine Kaufstatusdaten verfügbar/)).toHaveTextContent(
+        'Über „Übersicht aktualisieren“ kannst du den Datenstand erneut abrufen.',
+      );
+      expect(screen.queryByText(purchaseLabels.NOT_STARTED)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Backend|PC-Update|Installation/)).not.toBeInTheDocument();
+      expect(screen.queryByRole('button')).not.toBeInTheDocument();
+      expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    },
+  );
   it('distinguishes a previous-version purchase from an unbought new version', () => {
     show({
       ...plan,
@@ -56,6 +68,7 @@ describe('TradePlan purchase progress', () => {
     expect(screen.getByText(/Gekaufter Optionsschein · Planversion 1/)).toBeInTheDocument();
     expect(screen.getByText(/Kaufdatum: 17.08.2026/)).toBeInTheDocument();
     expect(screen.getByText('Offene Stückzahl: 5')).toBeInTheDocument();
+    expect(screen.queryByText(/Keine Kaufstatusdaten verfügbar/)).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Trade verwalten / Nachkauf' })).toHaveAttribute(
       'href',
       '/trade-management?trade_id=trade-original',
@@ -66,6 +79,7 @@ describe('TradePlan purchase progress', () => {
     (status) => {
       show({ ...plan, execution: { status, current_version_status: status, trades: [] } });
       expect(screen.getByText(purchaseLabels[status])).toBeInTheDocument();
+      expect(screen.queryByText(/Keine Kaufstatusdaten verfügbar/)).not.toBeInTheDocument();
     },
   );
   it('shows full exit dates without calling a cancelled purchase an open holding', () => {
