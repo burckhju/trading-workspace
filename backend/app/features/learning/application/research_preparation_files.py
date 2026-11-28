@@ -33,7 +33,13 @@ def validate_private_output(output_dir: Path) -> Path:
         raise PreparationError("OUTPUT_EXISTS", "Ausgabepfad existiert bereits.")
     absolute = Path(os.path.abspath(output_dir))
     # Resolve only the parent: the final component must be exclusively created.
-    parent = absolute.parent.resolve(strict=True)
+    try:
+        parent = absolute.parent.resolve(strict=True)
+    except RuntimeError as exc:
+        # Python 3.12 reports symlink loops with a RuntimeError containing the path.
+        raise PreparationError(
+            "INVALID_OUTPUT_PATH", "Privater Ausgabepfad kann nicht aufgelöst werden."
+        ) from exc
     resolved = parent / absolute.name
     if _inside_git(absolute.parent) or _inside_git(parent):
         raise PreparationError(

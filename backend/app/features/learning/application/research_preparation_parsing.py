@@ -50,6 +50,12 @@ def _string(value: object, *, field: str, nullable: bool = True) -> str | None:
         raise PreparationError("INVALID_TYPE", f"{field}: Zeichenfolge erforderlich.")
     if not nullable and (not value or value != value.strip()):
         raise PreparationError("INVALID_STRING", f"{field}: nicht leer, keine äußeren Leerzeichen.")
+    try:
+        value.encode("utf-8")
+    except UnicodeEncodeError as exc:
+        raise PreparationError(
+            "INVALID_STRING", f"{field}: gültige Unicode-Zeichenfolge erforderlich."
+        ) from exc
     return value
 
 
@@ -138,8 +144,10 @@ def parse_research_input(raw: bytes) -> ResearchInput:
             parse_float=_reject_numeric_literal,
             parse_constant=_reject_numeric_literal,
         )
-    except (json.JSONDecodeError, UnicodeError) as exc:
-        raise PreparationError("INVALID_JSON", "Gültiges UTF-8-JSON erforderlich.") from exc
+    except PreparationError:
+        raise
+    except (ValueError, RecursionError) as exc:
+        raise PreparationError("INVALID_JSON", "Verarbeitbares UTF-8-JSON erforderlich.") from exc
     values = _object(decoded, field="input", keys=("schema_version", "source", "cases"))
     if values["schema_version"] != INPUT_SCHEMA_VERSION:
         raise PreparationError("INVALID_SCHEMA_VERSION", "Nicht unterstütztes Eingabeschema.")

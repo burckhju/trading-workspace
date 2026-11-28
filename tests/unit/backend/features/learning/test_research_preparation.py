@@ -6,6 +6,7 @@ import io
 import json
 import os
 import stat
+import sys
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
@@ -169,6 +170,54 @@ def test_json_numeric_price_literals_are_not_converted_to_floats(literal: bytes)
     with pytest.raises(PreparationError) as rejected:
         build_research_preparation(raw, cutoff=CUTOFF, expected_count=1)
     assert rejected.value.code == "INVALID_NUMERIC_LITERAL"
+
+
+@pytest.mark.parametrize("field", ["source.filename", "underlying_name"])
+@pytest.mark.parametrize("surrogate", ["\ud800", "\udfff"])
+def test_unpaired_unicode_surrogates_are_rejected_at_the_input_boundary(
+    field: str, surrogate: str
+) -> None:
+    case = _case()
+    payload = _payload([case])
+    if field == "source.filename":
+        cast(JsonObject, payload["source"])["filename"] = "synthetic" + surrogate + ".xlsx"
+    else:
+        case["underlying_name"] = "Synthetic Company " + surrogate
+    raw = json.dumps(payload, ensure_ascii=True).encode("utf-8")
+
+    with pytest.raises(PreparationError) as rejected:
+        build_research_preparation(raw, cutoff=CUTOFF, expected_count=1)
+
+    assert rejected.value.code == "INVALID_STRING"
+
+
+def test_valid_unicode_surrogate_pairs_preserve_the_source_value() -> None:
+    case = _case()
+    case["underlying_name"] = "Synthetic Company \U0001f600"
+    raw = json.dumps(_payload([case]), ensure_ascii=True).encode("utf-8")
+    bundle = build_research_preparation(raw, cutoff=CUTOFF, expected_count=1)
+    assert _objects(bundle.manifest["cases"])[0]["source_values"] == case
+
+
+def test_json_integer_conversion_limit_is_a_controlled_rejection() -> None:
+    previous_limit = sys.get_int_max_str_digits()
+    limit = sys.int_info.str_digits_check_threshold
+    raw = _raw([_case()]).replace(b'"source_row": 2', b'"source_row": ' + b"1" * (limit + 1))
+    try:
+        sys.set_int_max_str_digits(limit)
+        with pytest.raises(PreparationError) as rejected:
+            parse_research_input(raw)
+        assert rejected.value.code == "INVALID_JSON"
+    finally:
+        sys.set_int_max_str_digits(previous_limit)
+
+
+def test_json_nesting_limit_is_a_controlled_rejection() -> None:
+    depth = 10_000
+    raw = b"[" * depth + b"null" + b"]" * depth
+    with pytest.raises(PreparationError) as rejected:
+        parse_research_input(raw)
+    assert rejected.value.code == "INVALID_JSON"
 
 
 def test_zero_strike_is_allowed_but_negative_strike_is_rejected() -> None:

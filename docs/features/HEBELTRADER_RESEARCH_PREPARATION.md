@@ -17,7 +17,7 @@ Die Umsetzung der Analysevorbereitung ist vom Nutzerauftrag gedeckt; eine
 fachliche Endabnahme, ein Merge, eine Veröffentlichung oder Installation sowie
 eine produktive Regel- oder Provideraktivierung werden daraus nicht abgeleitet.
 
-Integrationsbasis: `eb7f89a30a1772f2c140c5a11cdfb0284d80fc3c`, Software 1.5.55.
+Ursprüngliche Integrationsbasis: `eb7f89a30a1772f2c140c5a11cdfb0284d80fc3c`, Software 1.5.55.
 Der Arbeitsstatus bleibt im [Product Backlog](../planning/PRODUCT_BACKLOG.md).
 Dieser Vertrag dokumentiert Eingaben und Akzeptanzkriterien, keine zweite
 Feature-Statusliste.
@@ -163,7 +163,11 @@ Checkout erlaubt keinen Export dorthin. Diese Schutzgrenze verhindert keine
 spätere absichtliche Veröffentlichung durch den Betreiber.
 
 Die Eingabedatei bleibt unverändert. Die CLI meldet nur Status, Anzahl und
-Fehlercodes. Ein Dateifehler kann einen privaten unvollständigen Ausgabeordner
+Fehlercodes. Das gilt auch für fehlerhafte CLI-Argumente (`INVALID_ARGUMENTS`),
+zyklische Ausgabepfade und nicht verarbeitbares JSON. Ungültige Unicode-Zeichen
+werden an der Eingabegrenze abgelehnt und nicht durch Ersatzzeichen verändert;
+gültige Unicode-Quellwerte bleiben erhalten. Die normale CLI-Hilfe bleibt verfügbar.
+Ein Dateifehler kann einen privaten unvollständigen Ausgabeordner
 hinterlassen. Ein fehlendes Manifest ist kein abgeschlossenes Ergebnis; ein neuer
 Versuch benötigt einen neuen Ordner. Dateien werden nicht automatisch gelöscht
 oder als neuer Lauf überschrieben.

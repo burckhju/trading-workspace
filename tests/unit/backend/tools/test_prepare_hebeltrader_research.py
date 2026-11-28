@@ -106,10 +106,89 @@ def test_cli_handles_file_error_and_invalid_cutoff(
     assert not output.exists()
 
 
-def test_cli_requires_all_four_explicit_arguments() -> None:
+def test_cli_requires_all_four_explicit_arguments(capsys: pytest.CaptureFixture[str]) -> None:
     with pytest.raises(SystemExit) as rejected:
         main([])
     assert rejected.value.code == 2
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert json.loads(captured.err) == {"status": "REJECTED", "code": "INVALID_ARGUMENTS"}
+
+
+@pytest.mark.parametrize("argument_case", ["unknown_option", "invalid_count"])
+def test_cli_argument_errors_never_echo_private_values(
+    argument_case: str, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    source = _documented_synthetic_source(tmp_path)
+    output = tmp_path / "SYNTHETIC_PRIVATE_OUTPUT"
+    private_argument = str(tmp_path / "SYNTHETIC_PRIVATE_CLI_ARGUMENT")
+    arguments = _arguments(source, output)
+    if argument_case == "unknown_option":
+        arguments.extend(["--unexpected", private_argument])
+    else:
+        arguments[-1] = private_argument
+
+    with pytest.raises(SystemExit) as rejected:
+        main(arguments)
+
+    assert rejected.value.code == 2
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert private_argument not in captured.err
+    assert str(source) not in captured.err
+    assert str(output) not in captured.err
+    assert json.loads(captured.err) == {"status": "REJECTED", "code": "INVALID_ARGUMENTS"}
+    assert not output.exists()
+
+
+def test_cli_help_remains_available(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit) as completed:
+        main(["--help"])
+    assert completed.value.code == 0
+    captured = capsys.readouterr()
+    assert all(
+        option in captured.out for option in ("--input", "--out", "--cutoff", "--expected-count")
+    )
+    assert captured.err == ""
+
+
+def test_cli_rejects_symlink_loop_without_disclosing_private_path(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    source = _documented_synthetic_source(tmp_path)
+    parent = tmp_path / "SYNTHETIC_PRIVATE_LOOP"
+    parent.symlink_to(parent.name)
+    output = parent / "prepared"
+
+    assert main(_arguments(source, output)) == 2
+
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert str(parent) not in captured.err
+    assert str(source) not in captured.err
+    assert "Traceback" not in captured.err
+    assert json.loads(captured.err) == {"status": "REJECTED", "code": "INVALID_OUTPUT_PATH"}
+
+
+def test_cli_rejects_unencodable_source_without_disclosing_values_or_paths(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    source = _documented_synthetic_source(tmp_path)
+    payload = json.loads(source.read_text())
+    payload["cases"][0]["underlying_name"] = "SYNTHETIC_PRIVATE_SOURCE\ud800"
+    source.write_text(json.dumps(payload), encoding="utf-8")
+    output = tmp_path / "prepared"
+
+    assert main(_arguments(source, output)) == 2
+
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "SYNTHETIC_PRIVATE_SOURCE" not in captured.err
+    assert str(source) not in captured.err
+    assert str(output) not in captured.err
+    assert "Traceback" not in captured.err
+    assert json.loads(captured.err) == {"status": "REJECTED", "code": "INVALID_STRING"}
+    assert not output.exists()
 
 
 def test_cli_never_prints_source_values_or_private_paths_on_rejection(
