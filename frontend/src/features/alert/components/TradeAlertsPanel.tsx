@@ -124,6 +124,16 @@ function healthExplanation(health: PositionMonitoringHealthResponse): string {
   return 'Die Monitoring-Daten konnten nicht verlässlich ausgewertet werden. Es wird kein scheinbar normaler Stop-/Target-Zustand angenommen.';
 }
 
+function invalidationExplanation(reason: string | null | undefined): string {
+  if (reason === 'LEGACY_RULE_PRICE_BASIS_UNCONFIRMED') {
+    return 'Der historische Regelkursbezug wurde nicht bestätigt; deshalb ist diese Meldung ungültig.';
+  }
+  if (reason === 'RISK_CONFIGURATION_OR_IDENTITY_SUPERSEDED') {
+    return 'Die bisherige Risikokonfiguration oder Identität wurde abgelöst; deshalb ist diese Meldung ungültig.';
+  }
+  return 'Diese Meldung ist ungültig. Ein näherer Invalidierungsgrund ist nicht belegt.';
+}
+
 export function TradeAlertsPanel({ tradeId }: { tradeId: string }) {
   const [alerts, setAlerts] = useState<AlertResponse[]>([]);
   const [health, setHealth] = useState<PositionMonitoringHealthResponse | null>(null);
@@ -294,14 +304,19 @@ export function TradeAlertsPanel({ tradeId }: { tradeId: string }) {
                   </span>
                 </div>
 
-                {alert.invalidation_reason && (
-                  <p className="mt-2 text-sm text-amber-300">
-                    {alert.alert_type === 'HEBELTRADER_B04_LOSS'
-                      ? 'B04-Verlusthinweis durch neue Bewertung ungültig. Ursprüngliche Werte bleiben zur Nachvollziehbarkeit erhalten.'
-                      : isEntryObservation(alert) || isDeadlineObservation(alert)
-                        ? 'Hinweis durch eine neue Bewertung ungültig. Ursprüngliche Angaben bleiben zur Nachvollziehbarkeit erhalten.'
-                        : 'Meldung wegen ungeklärtem Kursbezug ungültig. Ursprüngliche Werte bleiben zur Nachvollziehbarkeit erhalten.'}
-                  </p>
+                {alert.status === 'INVALIDATED' && (
+                  <div className="mt-2 text-sm text-amber-300">
+                    <p>
+                      {invalidationExplanation(alert.invalidation_reason)} Ursprüngliche Angaben
+                      bleiben zur Nachvollziehbarkeit erhalten.
+                    </p>
+                    {alert.invalidation_reason && (
+                      <details className="mt-2 text-xs text-slate-400">
+                        <summary className="cursor-pointer">Invalidierungsgrund anzeigen</summary>
+                        <p className="mt-1 break-all">{alert.invalidation_reason}</p>
+                      </details>
+                    )}
+                  </div>
                 )}
                 {isDeadlineObservation(alert) && (
                   <ProductDeadlineContext
