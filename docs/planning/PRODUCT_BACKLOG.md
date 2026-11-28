@@ -4,14 +4,23 @@
 
 | Feld | Wert |
 |---|---|
-| Revision | 25.11.2026: Aktuellen Main, PR-Head und Lieferweg erneut gelesen; v1.5.55 für den vorhandenen P01-gettex-Anschluss konkret vorbereitet. Fünf Versionswerte konsistent, bestehender Launcher unverändert. Das qualifizierte Vierer-Regelpaket bleibt erhalten; BSW-Dateikopie erneut bytegleich bezogen. Veröffentlichung, PC-Update, echte DB-Vorschau und Verbraucherabnahme bleiben eigene Nachweise im selben P01-Auftrag. |
+| Revision | 27.11.2026: Main, direkte Softwaretagauflösung und GitHub-Release-Auswahl neu geprüft; alle neun Alt-PRs anhand ihrer tatsächlichen Diffs und des Main-Codes abgeglichen. Verbleibende Anforderungen sind unter [Alt-PR-Abgleich](#pr-abgleich) den bestehenden Ownern zugeordnet. P01-Priorität, Quellenbelege und nächster P01-Arbeitsauftrag bleiben unverändert. |
 | Erstprüfung | 19.11.2026, 19:31:38 Uhr MEZ (Europe/Berlin), auf `254f0bbd52ab42e0120d381e915dc96c1118796c` / `v1.5.51` |
-| Fortschreibung | 20.11.2026, Beginn 13:46:04 Uhr MEZ; Main-/Release-Delta, tatsächliche CI, PR- und Betriebsnachweise erneut geprüft |
-| Geprüfter Produktstand | Fachlicher Daten-/Readervertrag auf `c7db441de36297a98d47cdf28c64b4e5d9994692` / v1.5.52; Backendreader und bestehende Betriebshelfer bis zum unten genannten Main unverändert. Die neue Oberfläche bleibt an ihre eigenen #372-Nachweise gebunden. |
-| Aktueller Main | `9a5e59dac3bb219cbc40641e62e75871eb2ed131`, Mergecommit #373 vom 22.11.2026, 21:35:28 Uhr MEZ, `VERSION=1.5.54`. Das Delta seit #372/febeb922… ändert ausschließlich Versions-/Liefermetadaten und Dokumentation; Backendpfade unverändert. Main ist kein Nachweis einer PC-Installation. |
-| Tatsächlicher PC | v1.5.54 auf `9a5e59dac3bb219cbc40641e62e75871eb2ed131`, zuletzt im Quellenkandidatenpaket vom 24.11.2026, 20:33 Uhr MEZ, vor/nach verifiziert; letzte vollständige Inventur weiterhin vom 22.11. |
+| Fortschreibung | 27.11.2026: Repository-/PR-Abgleich; frühere Fortschreibungen vom 20.–25.11. bleiben datierte historische Nachweise und werden nicht als neuer PC-Readback ausgegeben. |
+| Geprüfter Produktstand | Tatsächlicher Main-Code auf `eb7f89a30a1772f2c140c5a11cdfb0284d80fc3c`, einschließlich der späteren Historien-, UX3-, F207-, Provider- und P01-Lieferschnitte. Historische Daten-/Reader- und UI-Nachweise bleiben jeweils an ihre eigenen Commits und Prüfumfänge gebunden. |
+| Aktueller Main | `eb7f89a30a1772f2c140c5a11cdfb0284d80fc3c`, `VERSION=1.5.55`; am 27.11.2026 erneut gelesen. Main allein ist kein Installations- oder Fachabnahmebeleg. |
+| Neuester Softwareversionstag | `v1.5.55` direkt auf `eb7f89a30a1772f2c140c5a11cdfb0284d80fc3c` aufgelöst. Veröffentlichter Git-Tag und GitHub-Release-Objekt sind getrennte Nachweisarten. |
+| GitHub-Release-Auswahl `latest` | `v1.0.0-product-selection`; dies ist das von GitHub als `latest` gelieferte Release-Objekt, nicht der neueste veröffentlichte Softwareversionstag. |
+| Letzter hier referenzierter Repository-PC-Beleg | Historischer v1.5.54-Readback auf `9a5e59dac3bb219cbc40641e62e75871eb2ed131` im Quellenkandidatenpaket vom 24.11.2026, 20:33 Uhr MEZ, vor/nach verifiziert; letzte vollständige Inventur weiterhin vom 22.11. |
+| Betreiberreferenz vom 27.11.2026 | Laut übermittelter Referenz ist v1.5.55 installiert; P01-Produktbindung und gettex-Listing sind dokumentiert. Dies ist kein neuer unabhängiger PC-Readback dieses Alt-PR-Audits. P01-Mapping und anschließende V2-Bewertung sind damit nicht als abgeschlossen belegt. |
 | Funktion | Einzige maßgebliche Quelle des aktuellen Aufgabenstatus; bestehende PB-/FT-/M-Kennungen und Owner bleiben erhalten |
-| Prüfgrenze | Vollständiger Checkout, Quellprüfung, Gesamtreadback vom 22.11., P02- und Quellenkandidatenreads vom 24.11., isolierte gettex-Dateiprobe und freigegebene P01-KID-Prüfung; am 25.11. echte Vierer-Regeloriginalqualifikation. Kein interaktiver PC-/DB-Zugang, neuer DB-Previewfingerprint, Product-Import oder neuer P01-Entscheid aus dieser Originalprüfung |
+| Prüfgrenze | Vollständiger Checkout, tatsächliche PR-Diffs, Main-Code, Verträge und commitgebundene Test-/CI-Nachweise. Die historischen PC-/Quellenreads vom 22.–25.11. bleiben erhalten. Der Alt-PR-Audit führt keinen neuen PC-/DB-Readback, Product-Import, P01-Mappingschritt, produktiven Providerwechsel oder Eingriff in reale Bestände aus. |
+
+Die folgenden datierten Fortschreibungen beschreiben jeweils ihren damaligen
+Stand. Insbesondere werden frühere Liefer- und Installationsvorbereitungen
+nicht erneut zum Auftrag. Der [einzige nächste P01-Arbeitsauftrag](#naechster-schnitt)
+behält seine Priorität; die davon getrennte Alt-PR-Konsolidierung erteilt keine
+neue Betriebs-, Quellen- oder Handelsfreigabe.
 
 <a id="p01-lieferung-20261125"></a>
 ## Fortschreibung — P01-Lieferung konkret vorbereitet, 25.11.2026
@@ -679,9 +688,110 @@ unveränderter Gesamt-, P02- oder Kandidatenexport und keine erneute KID-Freigab
 | 24.11.2026, P01-Original gespeichert 21:07:13 Uhr MEZ | [Freigegebene KID-Prüfung](../reviews/DEPOT_SOURCE_COVERAGE_READBACK_2026-11-24.md#p01-originaleinheit): HTTP 200, drei Seiten, bytegleich zur PC-Revision, Einheit fehlt im Original; offizielle gettex-Konvention als ergänzender Belegweg gelesen | Eindeutige Ursachenklärung; kein Parserfix, kein neuer PC-Entscheid. Zusätzlicher aktueller Listing-Einheitenbeleg ist noch nicht integriert. |
 
 <a id="pr-abgleich"></a>
-### Aktuelle PRs gegenüber Main
+### Alt-PR-Abgleich — 27.11.2026
 
-Der direkte Abruf der offenen Pull Requests am **20.11.2026** zeigt zehn offene PRs: #369 und die neun unveränderten älteren Heads unten. **#368 ist gemergt und in v1.5.52 veröffentlicht**; er gehört zum integrierten Nachweis oben und nicht mehr in die offene Liste. Die offenen Änderungen sind nicht als integrierter Umfang des geprüften Main zu zählen. Historische PR-CI bleibt an den jeweiligen Head und tatsächlichen Testmerge gebunden.
+Die neun beim erneuten Abruf offenen Alt-PRs wurden gegen Main
+`eb7f89a30a1772f2c140c5a11cdfb0284d80fc3c` geprüft, einschließlich Drafts,
+historischer Basis, tatsächlichem Diff, späteren Integrationen, Code und
+Testverträgen. Die vollständige technische Matrix mit Commit-, Pfad-, Test-
+und CI-Belegen steht im [Prüfbericht vom 27.11.2026](../reviews/LEGACY_PR_CONSOLIDATION_2026-11-27.md).
+Der Bericht ist ein datierter Nachweis; **dieser Backlog bleibt der einzige
+Aufgabenstatusowner**. Bestehende PB-/FT-/M-Kennungen, Fachverträge und
+Abnahmegrenzen gelten weiter.
+
+Die Hauptkategorie bezieht sich auf den tatsächlichen Umfang des jeweiligen
+Alt-PRs: **A** vollständig durch Main ersetzt, **B** teilweise ersetzt,
+**C** eigenständig relevant, **D** technisch überholt, **E** fachlich oder
+extern blockiert. Ein fehlender Originalmerge belegt keine fehlende Funktion;
+eine ähnliche neue Funktion belegt keinen vollständigen Ersatz.
+
+| Alt-PR | Hauptkategorie | Bereits vorhandener Umfang | Gesicherter Rest und bestehender Statusowner | Integrationsentscheidung |
+|---|---|---|---|---|
+| [#205](https://github.com/burckhju/trading-workspace/pull/205) | **B — teilweise ersetzt** | Persistierte Kursbeobachtungen, lesende Historie für offene und geschlossene Positionen, getrennte Originalzeiten/Handelsplätze/Währungen, Quellenbelege, Diagramm- und Browserregressionen über #302/#306/#322. | [Positionshistorie](#pb-017-history) und [Kursbelege](#market-data-evidence): erlaubter rückwirkender Produkthistorienbezug, reale historische Abdeckung und Preismaßstabs-/Einheitenwechsel bleiben zu qualifizieren. Der alte „Seit Kauf“-Selektor und Basiswertumschalter bleiben als ursprüngliche Vorschläge erhalten; heutige Zeitfenster und separater Basiswertchart belegen keine wörtliche Umsetzung dieser Vorschläge. | Kein zweiter Historienreader und keine Übernahme der zwei alten Entwicklungsworkflows. Nach dieser Anforderungssicherung ist der Original-PR Schließungskandidat; Datenversorgung und fachliche Historienabnahme bleiben offen. |
+| [#315](https://github.com/burckhju/trading-workspace/pull/315) | **A — vollständig ersetzt** | Der tatsächliche Dokumentationsumfang ist über #314 im einzigen [UX3-Hinweisvertrag](../ui/ux-3/notice-contract.md), Inventuren, Abnahmezuordnungen und Folgeplan kanonisiert; spätere UX3-Produktschnitte sind separat integriert. | [Operational Workspace](#operational-workspace): M06, TP06, M02 sowie größere UX3-Folgeschnitte und menschliche Abnahmen behalten ihren eigenen Status. Kategorie A beendet nur den alten Dokumentationsdiff, nicht Gesamt-UX3. | Technisch ohne Verlust des Vertragsinhalts schließbar. Die bisherige Verwendung als historische Draft-Quelle bleibt nachvollziehbar; kein zweiter Hinweisvertrag und kein erneuter Merge. |
+| [#342](https://github.com/burckhju/trading-workspace/pull/342) | **D — technisch überholt** | Aktuelle Masterkoordination, UX3-K und Fachstruktur A aus #372 ersetzen den alten Fünf-Dokumente-Koordinationssnapshot. | [Operational Workspace](#operational-workspace), [PB-019-Regelabweichungen](#pb-019-deviations) und [Entscheidungsqualität](#pb-019-decision-quality): genaue historische Analyse-/Kandidatenrücklinks, qualifizierter Selection→Run-Readvertrag, M02, Coverage-Host und menschliche Abnahmen bleiben erhalten; Einzelgrenzen unten. | Alten Koordinationssnapshot nicht einspielen. Nach Sicherung der Restanforderungen Schließungskandidat, ohne eine zweite Prioritäten- oder Abnahmestatusquelle einzuführen. |
+| [#335](https://github.com/burckhju/trading-workspace/pull/335) | **C — eigenständig relevant** | Aktuelle Ausführungswährungsresolver und der Owner für bestätigte Währungsbelege sind vorhanden; v1.5.55 ersetzt den atomaren, bestandsgebundenen Korrekturhelfer nicht. | [Ausführungs-/Eröffnungsbelege](#pb-016-opening) und [Bruttoergebnis](#pb-017-gross-pnl): enger UNKNOWN-BUY-Scope, historische Herkunft, vollständiger Vorschaufingerprint, Transaktion/Rollback, Replay und Kostenbasis-/Performancewirkung sind gegen aktuelle Owner zu qualifizieren. PC-Wrapper, validiertes Backup, Runtime-/Tagbindung, Update-/Pending-Sperren und gesonderte Betreiberfreigabe bleiben vor realer Anwendung erforderlich. | Technischer Helfer im eigenen [Draft #377](https://github.com/burckhju/trading-workspace/pull/377) auf aktuellem Main, mit isolierten synthetischen Unit-/PostgreSQLtests qualifiziert. Weder dieser Audit noch grüne Tests erlauben eine tatsächliche Bestandskorrektur. |
+| [#341](https://github.com/burckhju/trading-workspace/pull/341) | **B — teilweise ersetzt** | Die E2E-Runnerkorrektur ist bereits über #343 integriert und gegenüber dem alten PR bytegleich. | [Learning-/Forschungsauswertung](#pb-019-performance-evaluations): Offline-Quellenprüfung und reproduzierbarer Export werden im abgegrenzten [Draft #375](https://github.com/burckhju/trading-workspace/pull/375) vorbereitet. XLSX-/PDF-Collector, historische Produkt-BID/ASK-Abdeckung, Listing-/Einheiten-/Termsqualifikation, versionierter Ausführungs-/Regelvertrag und vollständige Forschung bleiben getrennt offen. | Nur den privaten Offline-Vorbereitungsschnitt übernehmen; alten Runner- und Backlog-Gesamtdiff nicht erneut integrieren. Der neue Draft ist noch kein Main-, Betriebs- oder Forschungsergebnisnachweis. |
+| [#187](https://github.com/burckhju/trading-workspace/pull/187) | **D — technisch überholt** | Bestätigter Learning-Quellenreader, historische Positions-/Zielbelege, aktuelle Plan-/Preisachsen und vorhandenes Vanilla-IV-/BSM-Modell ersetzen wesentliche alte Infrastruktur. | [Planannahmen](#pb-014-assumptions), [Ziele](#pb-014-targets) und [IV-Labor](#iv-risk-lab): quellengebundene lesende Einstiegsvorschau, historisches Quellen-CRV, Banddiagnose, gesonderte B07-Prüfung und eigenständige Szenarien sind nicht durch Positionsmonitoring erledigt. Die ursprünglichen Vorschauanforderungen bleiben erhalten; Abgrenzung unten. | Originaldiff mit direkten fremden ORM-Zugriffen, eigenem Kalender und parallelem Modell nicht mergen. Erst einen kleinen Quellen-/CRV-Readvertrag beim vorhandenen Learning-Owner festlegen; Planerzeugung und aktuelle Einstiegssignale bleiben eigene Umfänge. |
+| [#197](https://github.com/burckhju/trading-workspace/pull/197) | **E — fachlich/extern blockiert** | Import-/Quellenversionen und Governance bestehen; keiner der sieben alten Collectorpfade ist dadurch als Main-Forschungslösung ersetzt. Historische Abruf-/Testbelege bleiben historische Nachweise. | [Forschungsauswertung](#pb-019-performance-evaluations) und [Kursbelege](#market-data-evidence): privater lokaler Collector/Repair, unveränderte Rohbelege, dauerhaftes Manifest und Offline-Qualitätsprüfung bleiben erhalten. Private Originalpakete, aktuelle Quellenrechte, vollständige Sitzungs-/Kapitalmaßnahmen-/Datenabdeckung und reproduzierbarer Studienvertrag fehlen. | Als Forschung erhalten. Keinen öffentlichen Auto-Akquisitionsworkflow oder Rohdatenexport unverändert übernehmen; kein neuer Abruf ohne Rechtequalifikation. Offline-Vorbereitung aus #341/#375 ersetzt diese Collector- und Forschungsanforderungen nicht. |
+| [#207](https://github.com/burckhju/trading-workspace/pull/207) | **B — teilweise ersetzt** | Wesentliche F207-Teilpfade für historische Ausführungen/Ziele, Produktmaßstab, Original-BID, Sitzungen/Status, B04/B57, Indikation, Produktfristen und getrennte Aktivierung/Zustellung sind über spätere Integrationen vorhanden. Der Originaldiff enthält nur einen Entwicklungs-Exportworkflow. | [Regelüberwachung](#monitoring-rules) und [verbindliche Restabnahme](#monitoring-restabnahme): vollständiger B06-/Schutz-/Stop-Pfad, B05/B20, qualifizierte B58-Quelle und vollständiges F207-5 bleiben offen. Synthetische Tests ersetzen weder Quellenqualifikation noch produktive Aktivierung, reale Bestandsprüfung oder Fachabnahme. | Alten Hilfsworkflow nicht übernehmen. Nach gesicherter F207-Zuordnung ist der Original-PR Schließungskandidat; keine vollständige Baseline behaupten und keine neue Parallelengine aufbauen. |
+| [#220](https://github.com/burckhju/trading-workspace/pull/220) | **B — teilweise ersetzt** | Morgan-Stanley-, JPMorgan- und gettex-MUND/MUNC-Adapter, gebundener Resolver und Retention sowie spätere datierte Quellenqualifikation sind bereits vorhanden. Der Alt-PR enthält Recherche, keinen Adaptercode. | [Providerkonfiguration](#provider-configuration), [Datenqualität](#market-data-quality) und [Kursbelege](#market-data-evidence): zusätzliche historische Anbieterbeobachtungen als Forschung erhalten; aktuelle Schnittstellen-/ISIN-Abdeckung, BID/ASK, Originalzeiten/-status sowie Zugangs-, Speicher- und Weitergaberechte bleiben einzeln zu qualifizieren. | Keinen vorhandenen Provider erneut implementieren oder unqualifizierte Quellen aktivieren. Nach Sicherung der Forschungsreste Schließungskandidat des alten Dokumentationsdiffs; historische Quellenproben bleiben datiert. |
+
+**Präzisierte Restgrenzen bei den vorhandenen Ownern:** Die #187-Vorschau
+muss veröffentlichte Marken, Währung und Dateiprovenienz unverändert bewahren.
+Das historische Quellen-CRV und die Diagnose `2*T1-T2` gegen GD200 sind kein
+aktuelles Einstiegssignal und keine bestätigte Verlagsformel. Die ursprüngliche
+rekonstruktive Vorschau mit 50/50-CRV am Ask und mindestens 2 % Abstand auf der
+Basiswertachse braucht eigene aktuelle Daten-, Zielhistorien- und
+Reviewnachweise; fehlende Zielhistorie bleibt unbekannt. Neue Planentwürfe
+benötigen eine ausdrückliche Nutzeraktion und bestehende Versions-/Approvalgrenzen.
+Theoretisches BSM bleibt vom ausführbaren Preis getrennt; ein FX-Szenario wird
+nicht durch das gleichwährungsgebundene bestehende Modell als unterstützt
+ausgegeben. B07 bleibt separat, B08 außerhalb der bestätigten Positionsbaseline.
+Auch die #197-Studienannahmen zu Z1-Realisierung, Peak-Protection und
+ATR-/SMA-/Swing-Varianten sind keine Freigabe der B01–B58-Baseline.
+
+Die F207-Reste gelten unverändert nach dem
+[bestehenden Integrationsvertrag](../features/HEBELTRADER_MONITORING_INTEGRATION_CONTRACT.md)
+und der [Restabnahmematrix](#monitoring-restabnahme). Insbesondere bleibt
+`QUALIFIED_B58_PATHS = ()`: Empfangsfrische oder der vorhandene verzögerte
+gettex-/V2-Pfad qualifizieren keine strenge B58-Quelle. Ein belegter Z1-Treffer,
+dauerhafter Schutzboden, 20 abgeschlossene Basiswertsitzungen ab Z1-Tag 0,
+Bekanntgabe, anschließende Überwachung und nachvollziehbare Korrektur gehören
+weiter zum fehlenden B06-/Schutzumfang; `DYNAMIC_STOP_V1` ersetzt ihn nicht.
+Datum ohne Uhrzeit, Produktende und Zahlungstag bleiben getrennt; persönliches
+Exitlisting und individueller Handelsschluss werden nicht angenommen.
+
+Für #342 bleiben exakte historische Analyse-/Kandidatenrückwege an ID, Typ
+und Version gebunden. Der Selection→Run-Bezug benötigt einen additiven
+öffentlichen Source-Readvertrag; intern vorhandene `selection.run_id` ist
+noch kein verfügbarer UI-DTO-Vertrag. Kein Latest-Alias und keine neue
+Persistenzrelation werden daraus abgeleitet. M02 benötigt einen geklärten
+Host-/Positionsread für Fehler-, Leer-, 404- und inzwischen geschlossene
+Zustände; ein fehlgeschlagener Healthread darf nicht als leere Erfolgslage
+erscheinen. Der vorhandene `/market-data/positions/quote-coverage`-Owner
+braucht vor einem UI-Schnitt einen öffentlichen Readtyp, Hostslot,
+Populationen- und Invalidierungsvertrag. Keine neue Prozentkennzahl oder
+Providerabfrage allein durch Navigation. PB-019-Regelabweichungen und
+Entscheidungsqualität sowie echte Screenreader-, Touch- und Bestandsabnahme
+bleiben fachliche Nachweise außerhalb synthetischer UI-Tests.
+
+Für #220 sind Dateicache und Abrufsperren prozesslokal. Der alte Vorschlag
+eines dauerhaften zentralen Dateicheckpoints ist damit nicht umgesetzt und
+bleibt beim vorhandenen Providerowner erhalten. Eine Umsetzung benötigt
+einen konkreten Bedarfs-, Speicher- und Rechtevertrag; sie wird nicht als
+Voraussetzung eines neuen parallelen Provideradapters behandelt.
+
+**Abgegrenzte sichere Folgearbeiten:** [Draft #374](https://github.com/burckhju/trading-workspace/pull/374)
+setzt ausschließlich den bereits vereinbarten M06-Ursachentext für ungültige
+Hinweise um; bekannte Originalgründe bleiben korrekt und fehlende/unbekannte
+Gründe neutral. Der getrennte [TP06/B4-Textrest in Draft #376](https://github.com/burckhju/trading-workspace/pull/376)
+ist lokal implementiert und getestet: fehlende optionale Kaufstatusdaten bleiben unbekannt, vorhandene
+Ausführungsdaten bleiben erhalten, eine Backendupdate-Pflicht wird nicht
+behauptet. Neue Draft-/Headnachweise werden im verlinkten Auditbericht gebunden.
+Der Offline-Forschungsdraft #375 schützt private Ausgaben und trennt
+deklarierte Quellen von verifizierten Ergebnissen; seine lokale
+Filesystemqualifikation war durch die umgebende Git-Arbeitskopie begrenzt
+und ist nicht als vollständig bestandener Gesamtlauf zu zählen. Der
+EUR-Helfer in [Draft #377](https://github.com/burckhju/trading-workspace/pull/377)
+bleibt ein eigener isolierter Integrationsschnitt mit der oben genannten
+Betriebsfreigabegrenze. Sein PC-Wrapper ist nicht implementiert. Alle vier
+Folge-PRs sind Drafts; keiner gilt hier als Main-integriert oder fachlich
+abgenommen.
+
+Für jeden Folgeschnitt werden **konzipiert → implementiert → lokal getestet →
+PR-geprüft → Main-integriert → veröffentlicht → PC-installiert → fachlich
+abgenommen** getrennt nachgewiesen. Weder alte grüne CI noch ein Draft oder
+synthetischer Test erhöhen den nachgelagerten Status. Schließungen sind hier
+nur begründete Vorschläge; kein Alt-PR wird durch diesen Audit geschlossen,
+gemergt oder kommentiert. Der laufende [P01-Auftrag](#naechster-schnitt), seine
+Mappings, Originalbelege, Import-/Einheitenowner und V2-Verbraucher bleiben
+unverändert; Überschneidungen bei historischen Preiseinheiten und
+Kursqualifikation benötigen denselben bestehenden Ownervertrag.
+
+### Historischer PR-Abgleich vom 20.11.2026
+
+Der damalige direkte Abruf der offenen Pull Requests am **20.11.2026** zeigte zehn offene PRs: #369 und die neun damals unveränderten älteren Heads unten. Diese Liste bleibt ausschließlich als historischer Snapshot erhalten; maßgeblich ist der datierte Abgleich vom 27.11. oben. **#368 war gemergt und in v1.5.52 veröffentlicht**; er gehörte zum integrierten Nachweis und nicht mehr in diese offene Liste. Die damals offenen Änderungen waren nicht als integrierter Umfang des damaligen Main zu zählen. Historische PR-CI bleibt an den jeweiligen Head und tatsächlichen Testmerge gebunden.
 
 | PR / Head | Tatsächlicher Scope gegenüber Main | Konsequenz für diesen Backlog |
 |---|---|---|
