@@ -76,6 +76,14 @@ def test_plan_round_trip_and_target_order_preserve_retry_identity() -> None:
     requests = {recovery.recovery_request_id(plan, target) for target in plan.targets}
     assert len(requests) == 2
     assert all(isinstance(request_id, UUID) for request_id in requests)
+    # Preserve the existing v1 identity for already approved private plans.
+    assert recovery.plan_fingerprint(plan) == (
+        "98e8dcf8102c9b0052be8f84e643669a4cd370086301f8bbf83140ef66d8b832"
+    )
+    assert requests == {
+        UUID("eabf7e46-7f4e-5848-9474-ebde9d149aa7"),
+        UUID("c20c8184-dbd8-52cf-b694-0cca5d92c653"),
+    }
     assert requests == {
         recovery.recovery_request_id(reordered, target) for target in reordered.targets
     }
@@ -145,6 +153,80 @@ def test_cli_validation_failure_does_not_echo_private_plan(
     output = capsys.readouterr()
     assert json.loads(output.out)["code"] == "INVALID_PLAN"
     assert "NEVER_ECHO_PRIVATE_INPUT" not in output.out + output.err
+
+
+@pytest.mark.parametrize(
+    "arguments",
+    [
+        ["NEVER_ECHO_PRIVATE_MODE"],
+        ["preview", "--unknown", "NEVER_ECHO_PRIVATE_ARGUMENT"],
+        ["preview", "NEVER_ECHO_PRIVATE_PLAN_PATH"],
+        ["preview", "--plan"],
+    ],
+)
+def test_cli_argument_errors_are_private_before_reading_or_running(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture, arguments: list[str]
+) -> None:
+    monkeypatch.setattr(recovery.sys, "argv", ["NEVER_ECHO_PRIVATE_PROGRAM_PATH", *arguments])
+    open_plan = Mock(side_effect=AssertionError("An invalid command must not read a plan"))
+    run = AsyncMock(side_effect=AssertionError("An invalid command must not run"))
+    monkeypatch.setattr(recovery.Path, "open", open_plan)
+    monkeypatch.setattr(recovery, "run", run)
+    with pytest.raises(SystemExit) as stopped:
+        recovery.main()
+    assert stopped.value.code == 2
+    output = capsys.readouterr()
+    assert output.out == ""
+    assert json.loads(output.err)["code"] == "INVALID_ARGUMENTS"
+    assert "NEVER_ECHO" not in output.out + output.err
+    open_plan.assert_not_called()
+    run.assert_not_awaited()
+
+
+def test_cli_help_remains_available_without_reading_or_running(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+) -> None:
+    monkeypatch.setattr(recovery.sys, "argv", ["recovery", "--help"])
+    run = AsyncMock(side_effect=AssertionError("Help must not run recovery"))
+    monkeypatch.setattr(recovery, "run", run)
+    with pytest.raises(SystemExit) as stopped:
+        recovery.main()
+    assert stopped.value.code == 0
+    output = capsys.readouterr()
+    assert "--plan" in output.out and "preview" in output.out
+    assert output.err == ""
+    run.assert_not_awaited()
+
+
+@pytest.mark.parametrize("duplicate", ["actor", "target", "counts", "note", "identical"])
+def test_cli_rejects_duplicate_json_fields_before_running(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture, duplicate: str
+) -> None:
+    raw = json.dumps(_payload())
+    field, replacement = {
+        "actor": (
+            '"actor_id": "10000000-0000-4000-8000-000000000002"',
+            '"actor_id": "10000000-0000-4000-8000-000000000099", '
+            '"actor_id": "10000000-0000-4000-8000-000000000002"',
+        ),
+        "target": (
+            '"execution_id": "20000000-0000-4000-8000-000000000001"',
+            '"execution_id": "20000000-0000-4000-8000-000000000099", '
+            '"execution_id": "20000000-0000-4000-8000-000000000001"',
+        ),
+        "counts": ('"usable": 1', '"usable": 2, "usable": 1'),
+        "note": ('"note": ', '"note": "NEVER_ECHO_PRIVATE_NOTE", "note": '),
+        "identical": ('"usable": 1', '"usable": 1, "usable": 1'),
+    }[duplicate]
+    assert field in raw
+    _stdin(monkeypatch, raw.replace(field, replacement, 1).encode())
+    run = AsyncMock(return_value={"status": "UNEXPECTED_PARSE"})
+    monkeypatch.setattr(recovery, "run", run)
+    assert recovery.main() == 1
+    output = capsys.readouterr()
+    assert json.loads(output.out)["code"] == "INVALID_PLAN"
+    assert "NEVER_ECHO" not in output.out + output.err
+    run.assert_not_awaited()
 
 
 def test_cli_rejects_oversized_input_before_database_access(

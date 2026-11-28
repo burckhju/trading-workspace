@@ -17,10 +17,10 @@ import sys
 from dataclasses import asdict, replace
 from datetime import UTC, date, datetime
 from pathlib import Path
-from typing import Literal
+from typing import Literal, NoReturn
 from uuid import UUID, uuid5
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy import select, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, AsyncSession
@@ -157,7 +157,11 @@ def plan_fingerprint(plan: PurchaseCurrencyRecoveryPlan) -> str:
 
 
 def recovery_request_id(plan: PurchaseCurrencyRecoveryPlan, target: RecoveryTarget) -> UUID:
-    return uuid5(REQUEST_NAMESPACE, f"{plan_fingerprint(plan)}:{target.execution_id}")
+    return _request_id(plan_fingerprint(plan), target)
+
+
+def _request_id(fingerprint: str, target: RecoveryTarget) -> UUID:
+    return uuid5(REQUEST_NAMESPACE, f"{fingerprint}:{target.execution_id}")
 
 
 def _declaration(plan: PurchaseCurrencyRecoveryPlan) -> ExecutionCurrencyDeclaration:
@@ -302,10 +306,11 @@ async def _inspect_state(
     snapshot = await read_snapshot(session, plan.workspace_id, plan.currency)
     report = build_report(snapshot, plan.filters.to_domain())
     _validate_targets(snapshot, report, plan)
+    fingerprint = plan_fingerprint(plan)
     repository = SqlAlchemyExecutionCurrencyConfirmationRepository(session)
     own: list[ExecutionCurrencyConfirmation] = []
     for target in _ordered_targets(plan):
-        found = await repository.find_request(plan.workspace_id, recovery_request_id(plan, target))
+        found = await repository.find_request(plan.workspace_id, _request_id(fingerprint, target))
         if found is not None:
             own.append(found)
     if own and len(own) != len(plan.targets):
@@ -334,7 +339,7 @@ async def _inspect_state(
                 or confirmation.note != plan.note
                 or confirmation.confirmed_by != plan.actor_id
                 or confirmation.supersedes_confirmation_id is not None
-                or confirmation.request_id != recovery_request_id(plan, target)
+                or confirmation.request_id != _request_id(fingerprint, target)
                 or confirmation.request_fingerprint != expected_fingerprint
                 or source.currency_confirmation is None
                 or source.currency_confirmation.id != confirmation.id
@@ -367,7 +372,7 @@ async def _inspect_state(
         _validate_postcondition(report, plan)
     return {
         "status": "ALREADY_APPLIED" if own else "READY",
-        "plan_fingerprint": plan_fingerprint(plan),
+        "plan_fingerprint": fingerprint,
         "workspace_id": str(plan.workspace_id),
         "currency": plan.currency,
         "target_count": len(plan.targets),
@@ -404,9 +409,10 @@ async def apply_plan(
     await connection.execute(text("SET LOCAL lock_timeout = '1s'"))
     await connection.execute(text("SET LOCAL statement_timeout = '10000ms'"))
     # These are exactly the tables materialized by the report plus the currency
-    # catalogue. A short maintenance lock serializes ordinary owners/imports as
-    # well as phantom inserts; unrelated readers remain permitted. NOWAIT also
-    # avoids lock-order deadlocks with an owner already holding a product/trade.
+    # catalogue. The maintenance lock serializes ordinary owners/imports as
+    # well as phantom inserts; unrelated readers remain permitted. NOWAIT avoids
+    # lock-order deadlocks with an owner already holding a product/trade. These
+    # SQL timeouts do not impose a deadline on the complete maintenance batch.
     await connection.execute(
         text(
             "LOCK TABLE currencies, warrants, trades, positions, execution_records, "
@@ -451,6 +457,7 @@ async def apply_plan(
             return before
         service = ExecutionCurrencyConfirmationService(session)
         declaration = _declaration(plan)
+        fingerprint = plan_fingerprint(plan)
         for target in _ordered_targets(plan):
             await service.confirm(
                 workspace_id=plan.workspace_id,
@@ -458,7 +465,7 @@ async def apply_plan(
                 execution_id=target.execution_id,
                 declaration=declaration,
                 actor=plan.actor_id,
-                request_id=recovery_request_id(plan, target),
+                request_id=_request_id(fingerprint, target),
                 supersedes_confirmation_id=None,
             )
             if connection.get_transaction() is not outer or not connection.in_transaction():
@@ -533,8 +540,33 @@ async def run(mode: str, plan: PurchaseCurrencyRecoveryPlan) -> dict[str, object
         await database.dispose()
 
 
+class _PrivateArgumentParser(argparse.ArgumentParser):
+    def error(self, message: str) -> NoReturn:
+        # Standard argparse diagnostics echo rejected values and private paths.
+        self.exit(
+            2,
+            json.dumps(
+                {
+                    "status": "ERROR",
+                    "code": "INVALID_ARGUMENTS",
+                    "message": "Expected preview, apply or verify with --plan PATH or -.",
+                }
+            )
+            + "\n",
+        )
+
+
+def _unique_plan_object(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    result: dict[str, object] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("Duplicate JSON field in private plan")
+        result[key] = value
+    return result
+
+
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = _PrivateArgumentParser(description=__doc__)
     parser.add_argument("mode", choices=("preview", "apply", "verify"))
     parser.add_argument("--plan", default="-", help="Private JSON plan, or - for standard input")
     return parser
@@ -551,8 +583,11 @@ def main() -> int:
         if len(raw) > MAX_PLAN_BYTES:
             raise RecoveryError("INVALID_PLAN", "The plan exceeds the supported size.")
         try:
+            # strict=True does not reject duplicate JSON fields. Check every
+            # object before the unchanged JSON-specific UUID/date validation.
+            json.loads(raw, object_pairs_hook=_unique_plan_object)
             plan = PurchaseCurrencyRecoveryPlan.model_validate_json(raw)
-        except ValidationError as error:
+        except (ValueError, RecursionError) as error:
             raise RecoveryError(
                 "INVALID_PLAN", "The private plan does not match the strict recovery schema."
             ) from error

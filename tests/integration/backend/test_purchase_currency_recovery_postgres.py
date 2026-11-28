@@ -233,6 +233,7 @@ async def _assert_waiting_for_lock(engine: AsyncEngine, task: asyncio.Task) -> N
 
 def test_bulk_recovery_preserves_all_business_rows_and_only_confirms_effective_buys(
     recovery_database: str,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _migrate(recovery_database, "head")
 
@@ -242,11 +243,18 @@ def test_bulk_recovery_preserves_all_business_rows_and_only_confirms_effective_b
             plan = await _plan(client, inventory)
             before = await _state(database.engine)
             assert before["execution_currency_confirmations"] == []
+            fingerprint = Mock(wraps=recovery.plan_fingerprint)
+            monkeypatch.setattr(recovery, "plan_fingerprint", fingerprint)
             assert (await _inspect(database.engine, plan))["status"] == "READY"
+            assert fingerprint.call_count == 1
             assert await _state(database.engine) == before
 
+            fingerprint.reset_mock()
             result = await _apply(database.engine, plan)
             assert result["status"] == "APPLIED"
+            # Bound full-plan hashing across both inspections and the owner loop;
+            # it must not repeat for every request under the maintenance locks.
+            assert fingerprint.call_count <= 3
             after = await _state(database.engine)
             confirmations = after.pop("execution_currency_confirmations")
             assert len(confirmations) == len(result["confirmations"]) == 2
